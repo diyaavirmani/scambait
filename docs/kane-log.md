@@ -117,3 +117,9 @@ that only used the test stand-in (`tests/fixtures/fake_kane.py`) are never liste
 - **Fix** (`app/investigate/kane.py`): on timeout the whole process tree is killed, children first, and the pipe is
   never awaited without a limit. `tests/test_kane_timeout.py` starts a stand-in that behaves the same way and checks
   the run ends in seconds with its child gone.
+
+## Latest practice-lab score
+
+Wed 25 Nov 2026, 11:13 IST, on the finished app: **5 of 5 correct**, every site passed, 0 pay-button presses and
+0 unsafe steps, 21 to 40 credits and 72 to 109 seconds per site. Saved in
+`kane/results/lab-check-2026-11-25T054304+0000.json`; these runs are the recordings in `kane/recordings/`.

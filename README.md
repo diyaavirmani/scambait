@@ -67,6 +67,7 @@ practice lab run again after a change to the investigator, so a fix that breaks 
 | 24 Nov, 15:56 | written in phases | 4 of 5: Kane typed a PIN and pressed pay (catch 4) | **2** on electricity | 24 to 41 |
 | 24 Nov, 16:13 | one flow, safety rule first | 3 of 5: right values under Kane's own names (catch 5) | 0 on all 5 | 20 to 36 |
 | 24 Nov, 16:26 | one flow, exact names, read by meaning | **5 of 5** | **0 on all 5** | 19 to 28 |
+| 25 Nov, 11:13 | the same, on the finished app | **5 of 5** | **0 on all 5, 0 unsafe steps** | 21 to 40 |
 
 What Kane caught while this was built is in the [Kane log](docs/kane-log.md).
 
