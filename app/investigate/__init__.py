@@ -264,7 +264,7 @@ async def run_investigation(inv_id: int, url: str, case_id: Optional[str], chann
 
 def _event_data(row: dict) -> dict:
     keys = ("id", "url", "status", "verdict", "claims_to_be", "payee", "payee_kind", "amount", "asked_for",
-            "summary", "reason", "credits", "duration_s", "evidence_sha256")
+            "summary", "reason", "steps", "credits", "duration_s", "evidence_sha256")
     data = {k: row.get(k) for k in keys}
     data["investigation_id"] = data.pop("id")
     data["evidence"] = bool(row.get("evidence_path"))
