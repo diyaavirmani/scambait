@@ -33,6 +33,18 @@ class Settings:
     persona_rpm: int = field(default_factory=lambda: _int("CEREBRAS_RPM_OSS", 5))
     flag_rpm: int = field(default_factory=lambda: _int("CEREBRAS_RPM_QWEN", 5))
 
+    # OpenAI: Decisions second opinion, moderation, report fallback, live voice on phone calls (optional; features
+    # that need it report themselves unavailable without it)
+    openai_api_key: str = field(default_factory=lambda: _str("OPENAI_API_KEY"))
+    decisions_model: str = field(default_factory=lambda: _str("DECISIONS_MODEL", "gpt-6-luna"))
+    live_model: str = field(default_factory=lambda: _str("LIVE_MODEL", "gpt-live-1"))
+
+    # Phone calls (Twilio). The auth token verifies X-Twilio-Signature on every webhook.
+    twilio_account_sid: str = field(default_factory=lambda: _str("TWILIO_ACCOUNT_SID"))
+    twilio_auth_token: str = field(default_factory=lambda: _str("TWILIO_AUTH_TOKEN"))
+    twilio_phone_number: str = field(default_factory=lambda: _str("TWILIO_PHONE_NUMBER"))
+    call_batch_seconds: int = field(default_factory=lambda: _int("CALL_BATCH_SECONDS", 20))
+
     # Storage
     db_path: str = field(default_factory=lambda: _str("DB_PATH", "scambait.db"))
     data_dir: str = field(default_factory=lambda: _str("DATA_DIR", "out"))

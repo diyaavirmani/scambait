@@ -1,6 +1,7 @@
 """Case API for the dashboard.
 
 GET  /api/cases               newest first, with the scammer message count
+GET  /api/intel               every identifier across cases, newest first, each marked if Kane proved it
 GET  /api/cases/{id}          the case, its messages, identifiers (each marked if Kane proved it), events, evidence,
                               Kane investigations, and other cases that share an identifier with it
 """
@@ -51,6 +52,16 @@ async def case_detail(case_id: str) -> dict:
 @router.get("/api/cases")
 async def list_cases(limit: int = 100) -> dict:
     return {"cases": await get_runtime().store.list_cases(max(1, min(limit, 500)))}
+
+
+@router.get("/api/intel")
+async def all_intel(limit: int = 500) -> dict:
+    store = get_runtime().store
+    rows = await store._all(
+        "SELECT i.*, c.scam_type, c.channel FROM intel i JOIN cases c ON c.id = i.case_id ORDER BY i.id DESC LIMIT ?",
+        (max(1, min(limit, 2000)),))
+    proven = proven_keys(await store.list_investigations(None, limit=1000))
+    return {"intel": [{**r, "proven": (r["kind"], r["norm"]) in proven} for r in rows]}
 
 
 @router.get("/api/cases/{case_id}")

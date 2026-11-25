@@ -5,7 +5,7 @@ import type { Case, CaseData, Ev, Investigation } from './types';
  * their name, so a type missing here never reaches the page; tests/test_event_contract.py checks this list. */
 export const EVENT_TYPES = [
   'message.received', 'persona.reply', 'scam.detected', 'intel.extracted', 'case.updated', 'kane.started',
-  'kane.finished',
+  'kane.finished', 'call.status', 'transcript.partial', 'transcript.final', 'metrics.speed', 'network.updated',
 ];
 
 type Listener = (ev: Ev) => void;

@@ -96,14 +96,30 @@ async def _store_intel(case_id: str, channel: str, text: str, message_id: int) -
                 _spawn(start_investigation(item.value, case_id, channel))
 
 
-async def handle_message(case_id: str, channel: str, text: str) -> Reply:
-    rt = get_runtime()
-    store = rt.store
+async def record_scammer_text(case_id: str, channel: str, text: str) -> tuple[int, int]:
+    """Store what the scammer said (a chat message or a finished call utterance), announce it, and pull out its
+    identifiers (new links go to Kane). Returns (message id, scammer message count)."""
+    store = get_runtime().store
     text = (text or "").strip()[:MAX_TEXT]
     mid = await store.add_message(case_id, "scammer", text)
     turn = await store.count_messages(case_id, "scammer")
     await emit("message.received", {"role": "scammer", "text": text, "message_id": mid, "turn": turn}, case_id, channel)
     await _store_intel(case_id, channel, text, mid)
+    return mid, turn
+
+
+async def record_persona_text(case_id: str, channel: str, text: str, **extra) -> int:
+    """Store what Meena said outside a chat turn (for example on a phone call) and announce it."""
+    mid = await get_runtime().store.add_message(case_id, "persona", text)
+    await emit("persona.reply", {"text": text, "message_id": mid, "kane_findings_used": 0, **extra}, case_id, channel)
+    return mid
+
+
+async def handle_message(case_id: str, channel: str, text: str) -> Reply:
+    rt = get_runtime()
+    store = rt.store
+    text = (text or "").strip()[:MAX_TEXT]
+    mid, turn = await record_scammer_text(case_id, channel, text)
 
     async with _lock(case_id):
         case = await store.get_case(case_id)

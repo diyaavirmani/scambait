@@ -19,6 +19,11 @@ EVENT_TYPES = (
     "case.updated",       # summary or status changed
     "kane.started",       # Kane began investigating a link
     "kane.finished",      # Kane's result for a link
+    "call.status",        # a phone call rang, went live or ended
+    "transcript.partial", # live call speech as it arrives
+    "transcript.final",   # a finished call utterance
+    "metrics.speed",      # how long a model call took
+    "network.updated",    # cases linked by a shared identifier changed
 )
 
 IntelKind = Literal["upi", "phone", "bank_account", "ifsc", "url", "apk", "email", "card", "amount"]
