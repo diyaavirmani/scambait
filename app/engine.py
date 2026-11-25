@@ -11,6 +11,7 @@ between never shows stale data.
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import logging
 import re
 from typing import Optional
@@ -176,6 +177,16 @@ async def handle_message(case_id: str, channel: str, text: str) -> Reply:
             log.warning("Meena's model failed on %s: %s", case_id, type(exc).__name__)
             raw, degraded = scripted_line(ctx), True
         reply, flags = meena.guard(raw)
+        if findings and not degraded and not any(meena.mentions_finding(reply, f) for f in findings):
+            # The model left out what Kane proved. Ask once more, insisting; keep the first draft if that fails too.
+            log.info("Meena's reply on %s left out the Kane finding; asking again", case_id)
+            try:
+                out = await rt.brain.reply(dataclasses.replace(ctx, insist=True))
+                again, again_flags = meena.guard(out["reply"])
+                if any(meena.mentions_finding(again, f) for f in findings):
+                    reply, flags, summary = again, again_flags, out.get("summary", "") or summary
+            except Exception as exc:
+                log.warning("Meena's second try failed on %s: %s", case_id, type(exc).__name__)
         if flags:
             log.info("reply guard on %s: %s", case_id, flags)
 
@@ -184,8 +195,9 @@ async def handle_message(case_id: str, channel: str, text: str) -> Reply:
         if findings and not degraded:
             from app.models import utc_now
             for f in findings:
-                await store.update_investigation(f["id"], used_at=utc_now())
-            used = len(findings)
+                if meena.mentions_finding(reply, f):   # only what the reply really used; the rest waits a turn
+                    await store.update_investigation(f["id"], used_at=utc_now())
+                    used += 1
         await emit("persona.reply", {"text": reply, "message_id": pmid, "turn": turn, "mode": mode,
                                      "degraded": degraded, "kane_findings_used": used}, case_id, channel)
 

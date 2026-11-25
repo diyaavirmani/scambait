@@ -52,6 +52,51 @@ async def test_kane_finding_reaches_the_next_reply_once(runtime):
     assert any(f.startswith("Link they sent, checked:") for f in facts)
 
 
+class ForgetfulBrain:
+    """A model that leaves out the Kane finding on its first `misses` drafts of a link turn."""
+    mode = "cerebras"
+
+    def __init__(self, misses):
+        self.misses, self.calls = misses, []
+
+    async def reply(self, ctx):
+        self.calls.append(ctx)
+        if ctx.findings and len([c for c in self.calls if c.findings]) <= self.misses:
+            return {"reply": "Oh dear, my glasses are blurry. What does it say?", "summary": "kyc scam"}
+        if ctx.findings:
+            inv = ctx.findings[0]
+            return {"reply": f"My grandson says the page is {inv['claims_to_be']} and wants Rs {inv['amount']}. "
+                             "Whose name will show when I pay?", "summary": "kyc scam"}
+        return {"reply": "Hello? I am here, beta. Tell me slowly.", "summary": "kyc scam"}
+
+
+async def _link_case(runtime):
+    cid, _ = await chat(runtime, f"Dear customer, your account will be blocked. Update KYC: {LAB_KYC}")
+    await settle()
+    return cid
+
+
+@pytest.mark.parametrize("misses,used,calls", [(0, 1, 1), (1, 1, 2)])
+async def test_a_reply_that_leaves_out_the_finding_is_asked_again(runtime, misses, used, calls):
+    cid = await _link_case(runtime)
+    runtime.brain = brain = ForgetfulBrain(misses)
+    r = await engine.handle_message(cid, "web", "Did you do it? Hurry.")
+    assert "Bharat Unity Bank" in r.text
+    assert len(brain.calls) == calls and brain.calls[-1].insist is (calls == 2)
+    last = [e for e in await runtime.store.events_for_case(cid) if e.type == "persona.reply"][-1]
+    assert last.data["kane_findings_used"] == used
+
+
+async def test_a_finding_left_out_twice_waits_for_the_next_turn(runtime):
+    cid = await _link_case(runtime)
+    runtime.brain = ForgetfulBrain(2)
+    r = await engine.handle_message(cid, "web", "Did you do it? Hurry.")
+    assert "Bharat Unity" not in r.text
+    assert len(await runtime.store.unused_findings(cid)) == 1
+    r = await engine.handle_message(cid, "web", "Hello?")
+    assert "Bharat Unity Bank" in r.text and await runtime.store.unused_findings(cid) == []
+
+
 async def test_apk_links_are_never_opened(runtime):
     cid, _ = await chat(runtime, "Install this to get refund: https://refund.example/Refund.apk")
     await settle()

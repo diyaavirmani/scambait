@@ -145,3 +145,28 @@ async def test_self_test_checks_models():
     assert (await ok.self_test())["ok"] is True
     with pytest.raises(BrainError):
         await brain_with(lambda req: httpx.Response(200, json={"data": [{"id": "gpt-oss-120b"}]})).self_test()
+
+
+@pytest.mark.parametrize("text,used", [
+    ("My grandson says it is Bharat Unity Bank and wants Rs 10", True),
+    ("Bharat Unity wants 10 rupees, whose name will show?", True),
+    ("It wants 1,280 rupees", True),
+    ("My grandson says it is Bharat Unity Bank and wants money", False),
+    ("It wants Rs 10 only, whose name will show?", False),
+    ("It says some bank wants 10 rupees", False),
+    ("Bharat Unity Bank wants 100 rupees", False),
+    ("Oh dear, my glasses are blurry", False),
+])
+def test_mentions_finding(text, used):
+    inv = {"claims_to_be": "Bharat Unity Bank", "amount": "10"} if "1,280" not in text else {"amount": "1280"}
+    assert meena.mentions_finding(text, inv) is used
+
+
+def test_a_link_turn_has_its_own_strategy_and_can_insist():
+    inv = {"claims_to_be": "Bharat Unity Bank", "amount": "10", "payee": "x@demoupi", "payee_kind": "upi"}
+    ctx = Context(history=[{"role": "scammer", "text": "pay now"}], findings=[inv])
+    system = persona_messages(ctx)[0]["content"]
+    assert "do not ask them to repeat" in system and "last draft" not in system
+    import dataclasses
+    system = persona_messages(dataclasses.replace(ctx, insist=True))[0]["content"]
+    assert "Bharat Unity Bank and asks for Rs 10" in system

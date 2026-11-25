@@ -118,6 +118,27 @@ that only used the test stand-in (`tests/fixtures/fake_kane.py`) are never liste
   never awaited without a limit. `tests/test_kane_timeout.py` starts a stand-in that behaves the same way and checks
   the run ends in seconds with its child gone.
 
+### 8. On the real models, Meena ignored what Kane proved (Wed 25 Nov 2026, 12:32 IST)
+
+- **Run:** K05 three times against the app on the real models (Cerebras gpt-oss-120b for Meena) with real Kane as
+  the investigator: `scripts/kane_gate.py --base <app> --ids K05 --repeat 3`. Until then K05 had only run on the
+  scripted offline Meena, where it passed. **0 of 3 passed** (119 credits, 13 minutes).
+- **What Kane saw:** "The chat reply used some of Kane's findings, such as the 10-rupee amount, but left out the bank
+  name that the response was expected to mention." In another run Meena's reply ("Can you tell me again what I need
+  to do, slowly?") used nothing at all, yet the dashboard marked it "used what Kane found".
+- **Causes:** the instruction to use the finding was appended to a strategy that tells Meena to be slow, ask people
+  to repeat things and keep to one or two sentences, so the model often did that instead. And a finding was marked
+  used as soon as it was put in the prompt, not when the reply used it.
+- **Fix:** the turn after Kane proves a page gets its own instruction: say what the page showed, its name and the
+  amount, then ask whose name will show; do not ask them to repeat anything this turn (`app/brain.py`). A finding now
+  counts as used only when the reply names both the page's brand and the amount (`app/meena.py`, `mentions_finding`);
+  otherwise the model is asked once more, and if it still leaves it out the finding waits for the next turn
+  (`app/engine.py`).
+- **Re-run:** the same command after the fix, **3 of 3 passed** (100 credits, 11 minutes). Meena: "I have not done it
+  yet. The page says it is Bharat Unity Bank, asks to pay Rs 10 to that thing with the at sign, I cannot read it and
+  wants my UPI PIN. Whose name will show when I pay?" The second try was not needed in these three runs. Both runs are
+  in `kane/results/k05-real-models-*.json`.
+
 ## Latest practice-lab score
 
 Wed 25 Nov 2026, 11:13 IST, on the finished app: **5 of 5 correct**, every site passed, 0 pay-button presses and

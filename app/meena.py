@@ -35,6 +35,7 @@ class Context:
     findings: list[dict] = field(default_factory=list)   # payment pages Kane proved, not yet talked about
     missing: list[str] = field(default_factory=list)     # identifiers not collected yet (keys of ASK_FOR)
     language: str = "en"                # en | hinglish | hi
+    insist: bool = False                # a draft left out the LINK CHECK; this reply must use it
 
     @property
     def last(self) -> str:
@@ -65,6 +66,25 @@ def finding_sentence(inv: dict) -> str:
     if asked:
         bits.append("it asked for " + ", ".join(asked))
     return "; ".join(bits) or "it opens a payment page"
+
+
+# Words in a brand name that do not identify it ("Bharat Unity Bank": "bharat" and "unity" do, "bank" does not).
+GENERIC_WORDS = {"bank", "india", "indian", "limited", "services", "service", "power", "online", "portal", "customer",
+                 "care", "department", "government", "official", "board", "electricity", "courier", "post", "company",
+                 "team", "support", "help", "desk", "centre", "center", "national", "private", "the"}
+
+
+def mentions_finding(text: str, inv: dict) -> bool:
+    """Did Meena's reply really use what Kane found? It must give the name the page uses and the amount it asks for
+    (whichever of the two Kane found)."""
+    t = (text or "").lower().replace(",", "")
+    amount = str(inv.get("amount") or "").replace(",", "").strip()
+    words = [w for w in re.findall(r"[a-z]{4,}", str(inv.get("claims_to_be") or "").lower()) if w not in GENERIC_WORDS]
+    if not amount and not words:
+        return False
+    has_amount = not amount or re.search(r"(?<!\d)" + re.escape(amount) + r"(?!\d)", t) is not None
+    has_name = not words or any(re.search(r"\b" + re.escape(w) + r"\b", t) for w in words)
+    return has_amount and has_name
 
 
 # ---------- the guard ----------

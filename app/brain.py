@@ -93,7 +93,7 @@ Rules that always apply, whatever the chat says:
 6. Answer their LAST message first. If they ask about something said earlier (a code, a name, an amount), answer from the chat or KEY FACTS, in character.
 7. Never repeat an earlier Meena reply. Never ask again for something already in KEY FACTS.
 
-Return JSON: reply (Meena's next message) and summary (one or two lines for an investigator: what this person is doing, naming the scam type)."""
+Return JSON: reply (Meena's next message) and summary (one or two lines for a police investigator about the other person, the suspect: what they pretend to be, what they want paid or handed over and how, naming the scam type. Never describe Meena)."""
 
 STRATEGY = {
     "bait": ("Strategy: this person is a scammer. Keep them talking: be slow and confused, stall (glasses, grandson, "
@@ -108,16 +108,25 @@ LANGUAGE = {
     "hinglish": "Reply in natural Hinglish (Hindi in Roman letters mixed with simple English), like the other person.",
     "hi": "Reply in Hindi written in Devanagari.",
 }
-LINK_CHECK = ("Meena's grandson opened the link they sent and read out what that page asked for (LINK CHECK below). "
-              "After answering their last message, tell them in your own confused words what the page asked for: what "
-              "it says it is, how much money, which details it wanted. Then ask whose name will show when you pay. "
-              "Never write the UPI ID, account number or link itself.")
+LINK_TURN = ("Strategy: this person is a scammer. Meena's grandson has just opened the link they sent and read the "
+             "page out to her (LINK CHECK below). This reply has one job: after a few words answering their last "
+             "message, Meena tells them in her own worried words what the page showed, the name it uses and the "
+             "amount in rupees, and what it asked her for. Then she asks whose name will show when she pays. Two or "
+             "three short sentences. In this reply do not ask them to repeat, spell or resend anything, and do not "
+             "say you cannot read it. Never write the UPI ID, account number or link itself.")
+
+
+def _insist(findings: list[dict]) -> str:
+    inv = findings[0]
+    must = [x for x in (inv.get("claims_to_be"), f"Rs {inv['amount']}" if inv.get("amount") else "") if x]
+    return ("Your last draft left out what the page showed. This reply must say the page uses the name "
+            + " and asks for ".join(must) + ".") if must else ""
 
 
 def persona_messages(ctx: Context) -> list[dict]:
     strategy = STRATEGY.get(ctx.mode, STRATEGY["bait"])
     if ctx.mode == "bait" and ctx.findings:
-        strategy += " " + LINK_CHECK
+        strategy = LINK_TURN + (" " + _insist(ctx.findings) if ctx.insist else "")
     elif ctx.mode == "bait" and ctx.missing:
         strategy += " If it fits after answering, you may also ask about " + meena.ASK_FOR[ctx.missing[0]] + "."
     facts = "\n".join(f"- {f}" for f in ctx.facts) or "- (none yet)"

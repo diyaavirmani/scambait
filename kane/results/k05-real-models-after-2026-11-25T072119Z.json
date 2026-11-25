@@ -1,0 +1,20 @@
+{
+  "at": "20261125T072119Z",
+  "head": "1ca4b37",
+  "selected_by": "ids",
+  "results": [
+    {
+      "id": "K05",
+      "title": "What Kane proves on the scam page reaches Meena's next reply",
+      "runs": 3,
+      "passed": 3,
+      "status": "passed",
+      "reason": "",
+      "summary": "Opened a new chat and selected the \u201cBank KYC update\u201d practice scam before sending it for investigation.\nWaited for Kane\u2019s investigation to confirm the result, which identified the recipient as bharatunity.kyc@demoupi.\nSent \u201cDid you do it? Hurry up.\u201d and received Meena\u2019s reply, which said she had not done it yet and referenced Bharat Unity Bank and 10 rupees.\nMeena\u2019s reply was marked as using Kane\u2019s finding.",
+      "failed_steps": [],
+      "evidence": "~/.testmuai/kaneai/sessions/5f92dc9a-f061-4ec9-aba5-5919792956a8/evidence/bbe56a3c-ab95-471b-ab34-ae069c46b05c.evidence",
+      "credits": 100.26734700000002,
+      "duration_s": 671.5
+    }
+  ]
+}

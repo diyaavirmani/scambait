@@ -1,0 +1,26 @@
+{
+  "at": "20261125T070244Z",
+  "head": "b22b1c8",
+  "selected_by": "ids",
+  "results": [
+    {
+      "id": "K05",
+      "title": "What Kane proves on the scam page reaches Meena's next reply",
+      "runs": 3,
+      "passed": 0,
+      "status": "failed",
+      "reason": "Final verification failed: \"\"Money goes to\" shows bharatunity.kyc@demoupi, Meena's latest reply mentions Bharat Unity Bank and 10 rupees, and her latest reply is marked \"used what Kane found\".\"",
+      "summary": "The chat reply used some of Kane's findings, such as the 10-rupee amount, but left out the bank name that the response was expected to mention.\nUpdate the Kane-informed reply template so it repeats both the proven bank name, Bharat Unity Bank, and the proven 10-rupee amount when those findings are available.\nevidence: objective_contradiction: Final verification failed: \"\"Money goes to\" shows bharatunity.kyc@demoupi, Meena's latest reply mentions Bharat Unity Ba",
+      "failed_steps": [
+        {
+          "step": 13,
+          "status": "failed",
+          "remark": "assert: \"Money goes to\" shows bharatunity.kyc@demoupi, Meena's latest reply mentions Bha"
+        }
+      ],
+      "evidence": "~/.testmuai/kaneai/sessions/d20c21f2-39af-4ad4-8a5a-fac04b6ee28c/evidence/dc878f7c-9206-400b-8eca-677c33850120.evidence",
+      "credits": 118.81039800000002,
+      "duration_s": 770.4
+    }
+  ]
+}
