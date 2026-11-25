@@ -4,6 +4,7 @@ import { useCase, useCases } from '../lib/live';
 import { Empty, PageHeader, Panel, VerdictBadge } from '../components/Layout';
 import { KaneCard } from '../components/KaneCard';
 import { EvidenceBoard } from '../components/EvidenceBoard';
+import { WarningCard } from '../components/WarningCard';
 import type { CaseReport } from '../lib/types';
 
 const when = (ts: string) => new Date(ts).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
@@ -108,6 +109,11 @@ export const Cases = ({ selected, select }: { selected: string | null; select: (
                 <Panel title="Case report" right={<FileText size={16} className="text-slate-400" aria-hidden />}>
                   {cd.case.report ? <Report report={cd.case.report} />
                     : <p className="text-sm text-slate-500">The report is being written. It appears here when it is ready.</p>}
+                </Panel>
+              )}
+              {cd.case.verdict === 'scam' && (
+                <Panel title="Warn your family" right={<span className="text-xs text-slate-500">English and Hindi, for WhatsApp</span>}>
+                  <WarningCard cd={cd} />
                 </Panel>
               )}
               {cd.case.moderation && cd.case.moderation.length > 0 && (
