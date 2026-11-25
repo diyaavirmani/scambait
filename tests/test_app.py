@@ -37,6 +37,7 @@ def wait_for_kane(client, case_id):
 def test_health_reports_offline_mode(client):
     body = client.get("/health").json()
     assert body["status"] == "ok" and body["brain"]["mode"] == "offline"
+    assert body["openai"] == {"configured": False, "decisions_available": False, "reason": "offline mode"}
 
 
 def test_console_chat_with_kane_finding(client):

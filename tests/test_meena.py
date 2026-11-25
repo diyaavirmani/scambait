@@ -1,4 +1,4 @@
-"""Meena: the guard, the prompt she gets, the scripted lines, and the Cerebras client (mocked HTTP)."""
+"""Meena: the guard, her prompt, the scripted lines, and the Cerebras client (mocked HTTP), its errors and speed."""
 import json
 
 import httpx
@@ -101,6 +101,43 @@ async def test_cerebras_retries_then_fails_loudly(monkeypatch):
     assert (await brain_with(handler).reply(Context(history=[]))) ["reply"] == "ok"
     with pytest.raises(BrainError):
         await brain_with(lambda req: httpx.Response(200, json={"choices": [{"message": {"content": "not json"}}]})).reply(Context(history=[]))
+
+
+async def test_every_cerebras_call_reports_its_speed(runtime):
+    def handler(req):
+        if json.loads(req.content)["model"] == "qwen-3.8-27b":
+            return httpx.Response(200, json={
+                "choices": [{"message": {"content": json.dumps({"is_scam": True, "p_scam": 0.9, "scam_type": "other",
+                                                                "risk": "high"})}}],
+                "usage": {"prompt_tokens": 300, "completion_tokens": 50}, "time_info": {"completion_time": 0.25}})
+        return completion({"reply": "Who is this, beta?", "summary": ""})
+    b = brain_with(handler)
+    await b.flag([{"role": "scammer", "text": "KYC"}], "c_000000000001")
+    await b.reply(Context(history=[{"role": "scammer", "text": "hi"}]))
+    flag, reply = [e for e in await runtime.store.events_after(0) if e.type == "metrics.speed"]
+    assert flag.case_id == "c_000000000001"
+    assert {k: flag.data[k] for k in ("step", "provider", "model", "tokens_per_s")} == {
+        "step": "flag", "provider": "cerebras", "model": "qwen-3.8-27b", "tokens_per_s": 200.0}
+    assert (reply.data["step"], reply.data["model"], "tokens_per_s" in reply.data) == ("reply", "gpt-oss-120b", False)
+    assert isinstance(flag.data["ms"], int)
+
+
+async def test_brain_errors_say_what_went_wrong(monkeypatch):
+    import app.brain as brain_mod
+
+    async def no_sleep(_):
+        return None
+    monkeypatch.setattr(brain_mod.asyncio, "sleep", no_sleep)
+
+    def refused(req):
+        raise httpx.ConnectError("refused", request=req)
+    for handler, kind in ((lambda req: httpx.Response(429), "rate_limit"), (lambda req: httpx.Response(503), "outage"),
+                          (refused, "outage"), (lambda req: httpx.Response(401), "http"),
+                          (lambda req: completion(["not", "an", "object"]), "bad_output")):
+        with pytest.raises(BrainError) as info:
+            await brain_with(handler).reply(Context(history=[]))
+        assert info.value.kind == kind
+    assert BrainError("plain").kind == "error"
 
 
 async def test_self_test_checks_models():

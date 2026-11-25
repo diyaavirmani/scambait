@@ -50,12 +50,15 @@ class Intel(BaseModel):
 
 class Verdict(BaseModel):
     label: VerdictLabel
-    p_scam: Optional[float] = None
+    p_scam: Optional[float] = None   # the deciding model's probability (None when rules decided)
     scam_type: str = "unknown"
     risk: str = "unknown"
-    decided_by: str = "none"   # model | rules | none
+    decided_by: str = "none"   # cerebras | decisions | rules | none
     rule_score: float = 0.0
     red_flags: list[str] = []
+    p_cerebras: Optional[float] = None
+    p_decisions: Optional[float] = None
+    decisions_available: Optional[bool] = None   # None: no OpenAI key; False: Decisions gave no answer this time
 
 
 class Reply(BaseModel):

@@ -24,7 +24,11 @@ async def start(settings: Settings) -> Runtime:
     store = Store(settings.db_path)
     await store.init()
     brain = ScriptedBrain() if settings.offline_mode else CerebrasBrain(settings)
-    rt = Runtime(settings=settings, store=store, bus=Bus(store), brain=brain)
+    openai = None
+    if settings.openai_api_key and not settings.offline_mode:
+        from app.openai_client import OpenAIClient
+        openai = OpenAIClient(settings)
+    rt = Runtime(settings=settings, store=store, bus=Bus(store), brain=brain, openai=openai)
     set_runtime(rt)
     try:
         rt.health = await brain.self_test()
@@ -51,6 +55,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await drain()
         await telegram.close()
         await rt.brain.close()
+        if rt.openai is not None:
+            await rt.openai.close()
         await rt.store.close()
 
     app = FastAPI(title="SCAM-BAIT", lifespan=lifespan)
@@ -67,7 +73,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         db = await rt.store.ping()
         brain = getattr(rt, "health", {"ok": False})
         ok = db and brain.get("ok", False)
-        return JSONResponse({"status": "ok" if ok else "degraded", "database": db, "brain": brain},
+        openai = rt.openai.status() if rt.openai is not None else {
+            "configured": False, "decisions_available": False,
+            "reason": "offline mode" if rt.settings.offline_mode else "OPENAI_API_KEY is not set"}
+        return JSONResponse({"status": "ok" if ok else "degraded", "database": db, "brain": brain, "openai": openai},
                             status_code=200 if ok else 503)
 
     return app
