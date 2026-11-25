@@ -21,7 +21,10 @@ SCAM-BAIT is checked by Kane CLI in a real browser. Read `kane/README.md` and `d
 | Identifier extraction | `app/intel.py` |
 | Kane investigator, safety guard, evidence | `app/investigate/` |
 | Practice scam lab | `app/lab/` |
-| Channels: console, Telegram, Check a message | `app/console.py`, `app/telegram.py`, `app/check.py` |
+| OpenAI: Decisions, moderation, report fallback | `app/openai_client.py` |
+| Channels: console, Telegram, honeypot, Check a message | `app/console.py`, `app/telegram.py`, `app/honeypot.py`, `app/check.py` |
+| Phone calls (Twilio, live voice) | `app/voice/` |
+| Networks, case report | `app/networks.py`, `app/report.py` |
 | Store, live events, cases, evidence pack | `app/store.py`, `app/bus.py`, `app/cases.py`, `app/evidence_pack.py` |
 | Dashboard (React), built into `app/web/dist` | `dashboard/` |
 
@@ -31,7 +34,7 @@ SCAM-BAIT is checked by Kane CLI in a real browser. Read `kane/README.md` and `d
 - Every new server event type goes into `EVENT_TYPES` in `app/models.py` and `dashboard/src/lib/live.ts`.
 - Save a change before emitting the event that announces it.
 - The investigator objective (`app/investigate/__init__.py`) is tuned on real Kane runs: after changing it, run
-  `make lab-check` (all five practice sites) and record the score in `docs/kane-log.md`. A fix for one site must not
+  `make lab-check` (every practice site) and record the score in `docs/kane-log.md`. A fix for one site must not
   break another.
 - Practice-lab brands and payees stay fictional. Real links are opened only with `LIVE_INVESTIGATION=1`, and Kane never
   pays, types a PIN, card, CVV or OTP, or downloads anything.
