@@ -87,6 +87,12 @@ practice lab run again after a change to the investigator, so a fix that breaks 
 | 25 Nov, 11:13 | the same, on the finished app | **5 of 5** | **0 on all 5, 0 unsafe steps** | 21 to 40 |
 | 25 Nov, 12:53 | plus the rotating-payee site, opened twice | **6 of 6**, rotation proven: 2 different payees | **0 on all 6, 0 unsafe steps** | 20 to 27 per visit |
 
+The OpenAI side was checked against the real API on 25 Nov 2026 with `make check-openai`, through the app's own
+client and voice code: Decisions scored a KYC scam 0.96 and a family message 0.14, moderation flagged a threat and
+passed a bill reminder, the Responses API wrote a case report naming only the validated UPI ID, and a GPT-Live
+session started in about a second, transcribed a spoken caller (G.711 at 8 kHz, as Twilio sends it) and answered in
+Meena's voice ("Which bank is this? Say your name slowly, and from which branch?").
+
 Kane also tests the app on the real models. Its K05 test (does Meena use what Kane proved?) passed 0 of 3 against
 Cerebras before a fix to Meena's instructions and 3 of 3 after (`kane/results/k05-real-models-*.json`). What Kane
 caught while this was built, nine problems in all, is in the [Kane log](docs/kane-log.md).
@@ -136,6 +142,7 @@ for real. With a Cerebras key in `.env` (copy `.env.example`), `make run` uses t
 | `make verify` | unit tests, then the Kane tests affected by your changes |
 | `make kane-all` | every Kane test against the dashboard |
 | `make lab-check` | real Kane investigates every practice site; scores and recordings are saved |
+| `make check-openai` | Decisions, moderation, the report and a live voice session against the real OpenAI API |
 | `make ship` | deploy only after unit tests and every Kane test pass |
 | `.venv/bin/python scripts/investigate.py <url>` | one investigation, printed as JSON |
 

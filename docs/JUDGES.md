@@ -55,4 +55,6 @@ curl -s http://127.0.0.1:8000/lab/api/activity                           # payme
   a browser (every replayed result is labelled "replay of a real Kane run").
 - [`docs/kane-log.md`](kane-log.md): what Kane caught while this was built, with Kane's own diagnosis and the fix.
 - `kane/badge.json`: the last `make ship` run and each Kane test's pass count.
+- `make check-openai` (needs `OPENAI_API_KEY`): Decisions, moderation, the report and a live voice session against
+  the real API, through the app's own code.
 - `make test`: unit and API tests (no keys, no network).

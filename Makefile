@@ -1,4 +1,4 @@
-.PHONY: test verify kane-all lab-check run offline ship
+.PHONY: test verify kane-all lab-check check-openai run offline ship
 
 ship:  ## deploy only if unit tests and every Kane test pass (writes the Kane badge, pushes, calls the deploy hook)
 	.venv/bin/python scripts/ship.py
@@ -11,6 +11,9 @@ verify: test  ## unit tests, then the Kane tests affected by your changes
 
 kane-all:  ## every Kane test against the dashboard
 	.venv/bin/python scripts/kane_gate.py --all
+
+check-openai:  ## Decisions, moderation, the report and a live voice session against the real OpenAI API
+	.venv/bin/python scripts/check_openai.py
 
 lab-check:  ## real Kane investigates every practice site; scores and recordings are saved
 	.venv/bin/python scripts/investigate.py --check-lab --record
