@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "label": "Kane CLI",
+  "message": "6/6 passed",
+  "color": "brightgreen",
+  "checked_at": "2026-11-25 11:48 IST",
+  "tests": {
+    "K01": "1/1",
+    "K05": "1/1",
+    "K06": "3/3",
+    "K07": "3/3",
+    "K08": "1/1",
+    "K09": "1/1"
+  }
+}
