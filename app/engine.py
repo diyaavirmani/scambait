@@ -86,14 +86,19 @@ async def facts_for(case_id: str, history: list[dict]) -> list[str]:
 
 
 async def _store_intel(case_id: str, channel: str, text: str, message_id: int) -> None:
+    from app import networks
     from app.investigate import start_investigation
     store = get_runtime().store
+    linked = False
     for item in extract(text):
         if await store.add_intel(case_id, item.kind, item.value, normalise(item.kind, item.value), message_id):
             await emit("intel.extracted", {"kind": item.kind, "value": item.value, "message_id": message_id},
                        case_id, channel)
+            linked = linked or item.kind in networks.LINK_KINDS
             if item.kind == "url" and not normalise("url", item.value).endswith(".apk"):
                 _spawn(start_investigation(item.value, case_id, channel))
+    if linked:
+        await networks.on_identifier_added(case_id, channel)
 
 
 async def record_scammer_text(case_id: str, channel: str, text: str) -> tuple[int, int]:
