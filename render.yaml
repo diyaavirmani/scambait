@@ -1,0 +1,29 @@
+# Render blueprint: New > Blueprint > pick this repo. Secrets marked sync: false are entered in the Render dashboard.
+# Render's Python runtime has no browser, so the live site replays real Kane CLI runs recorded from the practice lab
+# (scripts/kane_replay.py); every replayed result says so on screen. Live Kane runs on a machine with Chrome.
+services:
+  - type: web
+    name: scambait
+    runtime: python
+    plan: free
+    autoDeploy: false            # deploys come from `make ship`, only after every Kane test passes
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.14
+      - key: CEREBRAS_API_KEY
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: KANE_CMD
+        value: python scripts/kane_replay.py
+      - key: CONSOLE_ENABLED
+        value: "1"
+      - key: LIVE_INVESTIGATION
+        value: "0"
