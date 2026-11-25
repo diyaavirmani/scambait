@@ -18,6 +18,21 @@ export interface Case {
   created_at: string;
   updated_at: string;
   turns?: number;
+  report?: CaseReport | null;
+  moderation?: string[];
+}
+
+/** The case report for 1930 / NCRP, written when a case closes. Identifiers are only ones said in chat or proven by Kane. */
+export interface CaseReport {
+  summary: string;
+  scam_type: string;
+  modus_operandi: string;
+  key_points: string[];
+  suspect_identifiers: { kind: string; value: string }[];
+  risk: string;
+  recommended_action: string;
+  generated_by: string;
+  generated_at: string;
 }
 
 export interface Msg { id: number; case_id: string; role: 'scammer' | 'persona'; text: string; ts: string; }

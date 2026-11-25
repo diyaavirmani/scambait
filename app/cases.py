@@ -32,8 +32,10 @@ def proven_keys(investigations: list[dict]) -> set[tuple[str, str]]:
 
 async def case_detail(case_id: str) -> dict:
     from app.investigate.api import _public
-    store = get_runtime().store
-    case = await load_case(case_id)
+    from app.report import load_report
+    rt = get_runtime()
+    store = rt.store
+    case = {**await load_case(case_id), "report": load_report(rt.settings.data_dir, case_id)}
     investigations = await store.list_investigations(case_id)
     proven = proven_keys(investigations)
     intel = [{**i, "proven": (i["kind"], i["norm"]) in proven} for i in await store.list_intel(case_id)]

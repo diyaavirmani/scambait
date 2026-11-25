@@ -94,6 +94,50 @@ async def test_the_chat_closes_after_twenty_messages(runtime, monkeypatch):
     assert (await runtime.store.open_case("web", "web:t1"))["id"] != cid
 
 
+async def test_closing_a_case_writes_its_report(runtime, monkeypatch):
+    from app.cases import case_detail
+    monkeypatch.setattr(engine, "CLOSE_AT", 2)
+    cid, _ = await chat(runtime, "KYC blocked today, update now", "Pay to UPI fakeinvest.demo@okaxis now")
+    await settle()
+    report = (await case_detail(cid))["case"]["report"]
+    assert report and report["case_id"] == cid and report["generated_by"] == "offline"
+    assert {"kind": "upi", "value": "fakeinvest.demo@okaxis"} in report["suspect_identifiers"]
+    updates = [e.data for e in await runtime.store.events_for_case(cid) if e.type == "case.updated"]
+    assert any("report" in d for d in updates)
+
+
+async def test_ending_a_case_from_outside_writes_its_report(runtime):
+    from app.cases import case_detail
+    cid, _ = await chat(runtime, "KYC blocked today, update now")
+    await engine.end_case(cid)
+    await settle()
+    assert (await case_detail(cid))["case"]["report"]["case_id"] == cid
+
+
+class FakeOpenAI:
+    def __init__(self, flagged):
+        self.flagged, self.seen = flagged, []
+
+    async def decisions(self, window, case_id=None):
+        return None
+
+    async def moderate(self, text, case_id=None):
+        self.seen.append(text)
+        return {"flagged": self.flagged, "categories": ["harassment/threatening"] if self.flagged else []}
+
+
+@pytest.mark.parametrize("flagged", [True, False])
+async def test_moderation_notes_threats_on_the_case(runtime, flagged):
+    runtime.openai = FakeOpenAI(flagged)
+    cid, (r,) = await chat(runtime, "Pay now or police will arrest you today, digital arrest")
+    await settle()
+    assert runtime.openai.seen and r.text
+    notes = [e.data for e in await runtime.store.events_for_case(cid) if e.type == "case.updated" and "moderation" in e.data]
+    assert notes == ([{"moderation": ["harassment/threatening"]}] if flagged else [])
+    detected = next(e.data for e in await runtime.store.events_for_case(cid) if e.type == "scam.detected")
+    assert detected["decisions_available"] is False and "p_cerebras" in detected and "p_decisions" in detected
+
+
 @pytest.mark.parametrize("text,fact", [
     ("I am Rahul Mehta from Mumbai, code GOLD77", "Code they gave: GOLD77"),
     ("This is Priya from SEBI Investor Desk", "They said they are from: SEBI Investor Desk"),

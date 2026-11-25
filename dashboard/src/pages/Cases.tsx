@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Download, MessageSquareWarning } from 'lucide-react';
+import { Download, FileText, MessageSquareWarning } from 'lucide-react';
 import { useCase, useCases } from '../lib/live';
 import { Empty, PageHeader, Panel, VerdictBadge } from '../components/Layout';
 import { KaneCard } from '../components/KaneCard';
 import { EvidenceBoard } from '../components/EvidenceBoard';
+import type { CaseReport } from '../lib/types';
 
 const when = (ts: string) => new Date(ts).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
 
@@ -19,6 +20,27 @@ async function download(caseId: string, ext: 'csv' | 'pdf'): Promise<string> {
   URL.revokeObjectURL(url);
   return sha;
 }
+
+const WRITER: Record<string, string> = { cerebras: 'Cerebras', openai: 'OpenAI (Cerebras was down)', offline: 'built from the case data (offline mode)' };
+
+const Report = ({ report }: { report: CaseReport }) => (
+  <div className="space-y-3 text-sm">
+    <p className="text-slate-800">{report.summary}</p>
+    {report.modus_operandi && <p className="text-slate-700"><span className="font-semibold">How the scam works: </span>{report.modus_operandi}</p>}
+    {report.key_points.length > 0 && (
+      <ul className="list-disc pl-5 space-y-1 text-slate-700">{report.key_points.map((p, i) => <li key={i}>{p}</li>)}</ul>)}
+    {report.suspect_identifiers.length > 0 && (
+      <div className="flex flex-wrap gap-2">
+        {report.suspect_identifiers.map((s) => (
+          <span key={s.kind + s.value} className="font-mono text-xs bg-slate-100 border border-slate-200 rounded px-2 py-1">
+            <span className="text-slate-500">{s.kind.replace(/_/g, ' ')}: </span>{s.value}</span>))}
+      </div>)}
+    {report.recommended_action && (
+      <p className="rounded-lg bg-amber-50 border border-amber-200 text-amber-900 px-3 py-2">
+        <span className="font-semibold">Recommended action: </span>{report.recommended_action}</p>)}
+    <p className="text-xs text-slate-500">Risk {report.risk}. Written by {WRITER[report.generated_by] || report.generated_by} at {when(report.generated_at)}, naming only identifiers said in the chat or proven by Kane.</p>
+  </div>
+);
 
 /** Every case, and for the one selected: the chat, what Kane proved, the evidence board and the evidence pack. */
 export const Cases = ({ selected, select }: { selected: string | null; select: (id: string) => void }) => {
@@ -82,6 +104,16 @@ export const Cases = ({ selected, select }: { selected: string | null; select: (
                   <MessageSquareWarning size={15} aria-hidden /> Open in the Scam Console
                 </a>
               </Panel>
+              {(cd.case.report || cd.case.status === 'closed') && (
+                <Panel title="Case report" right={<FileText size={16} className="text-slate-400" aria-hidden />}>
+                  {cd.case.report ? <Report report={cd.case.report} />
+                    : <p className="text-sm text-slate-500">The report is being written. It appears here when it is ready.</p>}
+                </Panel>
+              )}
+              {cd.case.moderation && cd.case.moderation.length > 0 && (
+                <p role="note" className="text-sm rounded-lg bg-red-50 border border-red-200 text-red-800 px-3 py-2">
+                  The scammer used threatening or abusive language ({cd.case.moderation.join(', ').replace(/_/g, ' ')}), flagged by OpenAI moderation.</p>
+              )}
               <Panel title="Links opened by Kane">
                 {cd.investigations.length === 0 ? <p className="text-sm text-slate-500">The scammer sent no links in this case.</p>
                   : <div className="grid grid-cols-1 md:grid-cols-2 gap-3">{cd.investigations.map((inv) => <KaneCard key={inv.id} inv={inv} />)}</div>}

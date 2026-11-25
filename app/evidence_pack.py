@@ -88,7 +88,10 @@ async def build(case_id: str) -> dict:
         fields[col] = "; ".join(r["value"] for r in rows if r["kind"] in kinds)
     transcript = "\n".join(f"[{ist(m['ts'])}] {'Scammer' if m['role'] == 'scammer' else 'Decoy (Meena)'}: {m['text']}"
                            for m in messages)
+    from app.report import load_report
+    report = load_report(get_runtime().settings.data_dir, case_id)
     return {"case": case, "fields": fields, "rows": rows, "investigations": invs, "transcript": transcript,
+            "report": report,
             "generated": datetime.now(IST).strftime("%d %b %Y, %H:%M:%S IST"),
             "stamp": datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")}
 
@@ -159,6 +162,19 @@ def render_pdf(pack: dict, csv_sha: str) -> bytes:
     table([["Field", "Value"], ["Incident date and time", f["incident_datetime_ist"]],
            ["Incident details", f["incident_details"]]]
           + [[label, f[col] or "none collected"] for col, label, _ in SUSPECT], (45, 135))
+
+    report = pack.get("report")
+    if report:
+        heading("Case report")
+        para(report.get("summary", ""))
+        if report.get("modus_operandi"):
+            para("How the scam works: " + report["modus_operandi"])
+        for point in report.get("key_points") or []:
+            para("- " + point)
+        if report.get("recommended_action"):
+            para("Recommended action: " + report["recommended_action"])
+        para(f"Risk: {report.get('risk', '')}. Written by: {report.get('generated_by', '')}, "
+             f"from the transcript and validated identifiers only.")
 
     heading("Links opened by Kane CLI")
     if not pack["investigations"]:

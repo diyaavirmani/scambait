@@ -110,7 +110,22 @@ async def record_scammer_text(case_id: str, channel: str, text: str) -> tuple[in
     turn = await store.count_messages(case_id, "scammer")
     await emit("message.received", {"role": "scammer", "text": text, "message_id": mid, "turn": turn}, case_id, channel)
     await _store_intel(case_id, channel, text, mid)
+    if get_runtime().openai is not None:
+        _spawn(_moderate(case_id, channel, text))
     return mid, turn
+
+
+async def _moderate(case_id: str, channel: str, text: str) -> None:
+    """OpenAI moderation on what the scammer said. A flag (threats, harassment) is noted on the case; a failed call
+    never holds up the conversation."""
+    from app.openai_client import OpenAIError
+    try:
+        res = await get_runtime().openai.moderate(text, case_id=case_id)
+    except OpenAIError as exc:
+        log.info("moderation skipped on %s: %s", case_id, exc)
+        return
+    if res.get("flagged"):
+        await emit("case.updated", {"moderation": res.get("categories", [])}, case_id, channel)
 
 
 async def record_persona_text(case_id: str, channel: str, text: str, **extra) -> int:
@@ -142,7 +157,9 @@ async def handle_message(case_id: str, channel: str, text: str) -> Reply:
                 await store.update_case(case_id, verdict=verdict, scam_type=scam_type)
             await emit("scam.detected", {"stage": "final", "verdict": v.label, "p_scam": v.p_scam,
                                          "scam_type": v.scam_type, "risk": v.risk, "decided_by": v.decided_by,
-                                         "rule_score": v.rule_score, "red_flags": v.red_flags}, case_id, channel)
+                                         "rule_score": v.rule_score, "red_flags": v.red_flags,
+                                         "p_cerebras": v.p_cerebras, "p_decisions": v.p_decisions,
+                                         "decisions_available": v.decisions_available}, case_id, channel)
 
         closing = turn >= CLOSE_AT or (turn >= GOODBYE_AFTER and bool(GOODBYE_RE.search(text)))
         mode = "wrap_up" if closing else ("neutral" if verdict == "not_scam" else "bait")
@@ -182,6 +199,8 @@ async def handle_message(case_id: str, channel: str, text: str) -> Reply:
             case = await store.get_case(case_id)
             await emit("case.updated", {k: case[k] for k in ("status", "verdict", "scam_type", "summary")},
                        case_id, channel)
+            if closing:
+                _spawn(_report(case_id))
 
     return Reply(case_id=case_id, text=reply, verdict=verdict if verdict in ("scam", "not_scam") else "unknown",
                  scam_type=scam_type, turn=turn, closed=closing, degraded=degraded)
@@ -192,3 +211,9 @@ async def end_case(case_id: Optional[str]) -> None:
     if case_id:
         await get_runtime().store.update_case(case_id, status="closed")
         await emit("case.updated", {"status": "closed"}, case_id)
+        _spawn(_report(case_id))
+
+
+async def _report(case_id: str) -> None:
+    from app.report import write_report
+    await write_report(case_id)
