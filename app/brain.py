@@ -177,6 +177,13 @@ class BrainError(Exception):
         self.kind = kind
 
 
+# Both Cerebras models reason before they answer, and the reasoning counts against max_completion_tokens. The flag
+# model thinks for 75 to 300 tokens on a scam message (measured on 26 Nov 2026), so a budget of 200 cut most answers
+# off mid-JSON. A reply that stops at the limit is asked again once with double the budget.
+FLAG_TOKENS = 1024
+MAX_TOKENS = 4096
+
+
 class _Limiter:
     """At most `rpm` requests per rolling minute for one model."""
 
@@ -227,6 +234,7 @@ class CerebrasBrain:
                 "response_format": {"type": "json_schema", "json_schema": {"name": name, "strict": True, "schema": schema}}}
         if reasoning:
             body["reasoning_effort"] = reasoning
+        grown = False
         for attempt in range(3):
             await self.limits.setdefault(model, _Limiter(5)).wait()
             started = time.monotonic()
@@ -249,8 +257,19 @@ class CerebrasBrain:
             ms = int((time.monotonic() - started) * 1000)
             try:
                 answer = r.json()
-                data = json.loads(answer["choices"][0]["message"]["content"])
+                choice = answer["choices"][0]
             except (KeyError, IndexError, ValueError, TypeError):
+                raise BrainError(f"{model}: reply was not the JSON asked for", "bad_output") from None
+            if choice.get("finish_reason") == "length":
+                if grown or body["max_completion_tokens"] >= MAX_TOKENS:
+                    raise BrainError(f"{model}: answer cut off at {body['max_completion_tokens']} tokens", "bad_output")
+                log.info("%s answer cut off at %d tokens; asking again with more room", model, body["max_completion_tokens"])
+                body["max_completion_tokens"] = min(MAX_TOKENS, body["max_completion_tokens"] * 2)
+                grown = True
+                continue
+            try:
+                data = json.loads(choice["message"]["content"])
+            except (KeyError, ValueError, TypeError):
                 raise BrainError(f"{model}: reply was not the JSON asked for", "bad_output") from None
             await self._speed(step or name, model, ms, answer, case_id)
             if not isinstance(data, dict):
@@ -279,7 +298,7 @@ class CerebrasBrain:
         chat = [{"role": m["role"], "text": m["text"]} for m in window]
         data = await self._json(self.s.flag_model, [{"role": "system", "content": FLAG_PROMPT},
                                                     {"role": "user", "content": json.dumps({"chat": chat}, ensure_ascii=False)}],
-                                FLAG_SCHEMA, "scam_flag", 200, None, step="flag", case_id=case_id)
+                                FLAG_SCHEMA, "scam_flag", FLAG_TOKENS, None, step="flag", case_id=case_id)
         data["p_scam"] = min(1.0, max(0.0, float(data.get("p_scam") or 0)))
         return data
 

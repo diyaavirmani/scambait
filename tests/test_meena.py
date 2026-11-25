@@ -216,3 +216,27 @@ def test_a_recheck_turn_asks_which_account_is_right_and_can_insist():
     system = persona_messages(dataclasses.replace(both, insist=True))[0]["content"]
     assert "Bharat Unity Bank KYC update and asks for Rs 10" in system
     assert "must say the name or account changed" in system
+
+
+async def test_an_answer_cut_off_by_the_token_limit_is_asked_again_with_more_room():
+    """Cerebras's flag model reasons before it answers; at 200 tokens most scam verdicts were cut off mid-JSON."""
+    budgets = []
+
+    def handler(req):
+        body = json.loads(req.content)
+        budgets.append(body["max_completion_tokens"])
+        if len(budgets) == 1:
+            return httpx.Response(200, json={"choices": [{"finish_reason": "length", "message": {"content": '{"is_scam": tr'}}]})
+        return completion({"is_scam": True, "p_scam": 0.9, "scam_type": "kyc_phishing", "risk": "high"})
+    b = brain_with(handler)
+    assert (await b.flag([{"role": "scammer", "text": "KYC now"}]))["p_scam"] == 0.9
+    assert budgets == [1024, 2048]
+
+
+async def test_an_answer_cut_off_twice_is_a_clear_error():
+    def handler(req):
+        return httpx.Response(200, json={"choices": [{"finish_reason": "length", "message": {"content": "{"}}]})
+    b = brain_with(handler)
+    with pytest.raises(BrainError) as err:
+        await b.flag([{"role": "scammer", "text": "KYC now"}])
+    assert err.value.kind == "bad_output" and "cut off at 2048 tokens" in str(err.value)
