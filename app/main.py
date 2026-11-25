@@ -52,6 +52,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         from app import engine, telegram
         from app.investigate import drain
         await engine.settle()
+        from app.voice import webhooks
+        if webhooks._running:
+            import asyncio
+            await asyncio.gather(*list(webhooks._running), return_exceptions=True)
         await drain()
         await telegram.close()
         await rt.brain.close()
@@ -63,8 +67,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from app import bus, cases, check, console, evidence_pack, honeypot, networks, telegram, web
     from app.investigate import api as investigations
     from app.lab import router as lab
+    from app.voice import router as voice
     for router in (bus.router, cases.router, check.router, console.router, evidence_pack.router, honeypot.router,
-                   networks.router, telegram.router, investigations.router, lab, web.router):
+                   networks.router, telegram.router, voice, investigations.router, lab, web.router):
         app.include_router(router)
 
     @app.get("/health")
