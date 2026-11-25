@@ -1,12 +1,18 @@
 import type { ReactNode } from 'react';
-import { FlaskConical, FolderSearch, LayoutDashboard, MessageSquareWarning, Search, ShieldAlert } from 'lucide-react';
+import { Activity, FlaskConical, Fingerprint, FolderSearch, LayoutDashboard, MessageSquareWarning, MessagesSquare, PhoneCall, Search,
+  ShieldAlert, Waypoints } from 'lucide-react';
 import { useConnected } from '../lib/live';
 
 export const NAV = [
   { path: '/check', label: 'Check a Message', icon: Search },
   { path: '/console', label: 'Scam Console', icon: MessageSquareWarning },
+  { path: '/chats', label: 'Live Chats', icon: MessagesSquare },
+  { path: '/calls', label: 'Calls', icon: PhoneCall },
   { path: '/cases', label: 'Cases', icon: FolderSearch },
+  { path: '/intel', label: 'Intelligence', icon: Fingerprint },
+  { path: '/networks', label: 'Networks', icon: Waypoints },
   { path: '/overview', label: 'Overview', icon: LayoutDashboard },
+  { path: '/system', label: 'System', icon: Activity },
 ];
 
 export const Layout = ({ path, navigate, children }: { path: string; navigate: (p: string) => void; children: ReactNode }) => {

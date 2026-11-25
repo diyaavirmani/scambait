@@ -4,6 +4,11 @@ import { Check } from './pages/Check';
 import { Console } from './pages/Console';
 import { Cases } from './pages/Cases';
 import { Overview } from './pages/Overview';
+import { LiveChats } from './pages/LiveChats';
+import { Calls } from './pages/Calls';
+import { Intelligence } from './pages/Intelligence';
+import { Networks } from './pages/Networks';
+import { System } from './pages/System';
 
 function pathNow(): string {
   const p = window.location.pathname.replace(/\/+$/, '') || '/check';
@@ -26,6 +31,11 @@ export default function App() {
       {path === '/console' && <Console />}
       {path === '/cases' && <Cases selected={caseId} select={openCase} />}
       {path === '/overview' && <Overview openCase={openCase} />}
+      {path === '/chats' && <LiveChats openCase={openCase} />}
+      {path === '/calls' && <Calls openCase={openCase} />}
+      {path === '/intel' && <Intelligence openCase={openCase} />}
+      {path === '/networks' && <Networks openCase={openCase} />}
+      {path === '/system' && <System />}
     </Layout>
   );
 }

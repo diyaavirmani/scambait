@@ -13,7 +13,7 @@ from fastapi.responses import FileResponse, PlainTextResponse, Response
 
 router = APIRouter()
 DIST = Path(__file__).parent / "web" / "dist"
-PAGES = ("/", "/check", "/console", "/cases", "/overview")
+PAGES = ("/", "/check", "/console", "/chats", "/calls", "/cases", "/intel", "/networks", "/overview", "/system")
 ASSET_RE = re.compile(r"^[A-Za-z0-9_-]{1,80}\.(js|css|svg)$")
 MEDIA = {"js": "text/javascript", "css": "text/css", "svg": "image/svg+xml"}
 

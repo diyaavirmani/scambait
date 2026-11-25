@@ -26,7 +26,7 @@ def client(settings):
 
 @pytest.mark.skipif(not (DIST / "index.html").is_file(), reason="dashboard not built")
 def test_pages_and_assets(client):
-    for page in ("/", "/check", "/console", "/cases", "/overview"):
+    for page in ("/", "/check", "/console", "/chats", "/calls", "/cases", "/intel", "/networks", "/overview", "/system"):
         r = client.get(page)
         assert r.status_code == 200 and '<div id="root">' in r.text
     asset = re.search(r'/assets/([^"]+\.js)', client.get("/").text).group(1)
