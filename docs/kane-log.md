@@ -141,6 +141,11 @@ that only used the test stand-in (`tests/fixtures/fake_kane.py`) are never liste
 
 ## Latest practice-lab score
 
-Wed 25 Nov 2026, 11:13 IST, on the finished app: **5 of 5 correct**, every site passed, 0 pay-button presses and
-0 unsafe steps, 21 to 40 credits and 72 to 109 seconds per site. Saved in
-`kane/results/lab-check-2026-11-25T054304+0000.json`; these runs are the recordings in `kane/recordings/`.
+Wed 25 Nov 2026, 12:53 IST, with the rotating-payee site added: **6 of 6 correct**, every site passed, 0 pay-button
+presses and 0 unsafe steps, 62 to 99 seconds and 20 to 27 credits per visit. On the rotating site (SwiftRin Loans)
+Kane opened the link twice as a fresh visitor and proved two different payees, `swiftrin.fee@demoupi` and then
+`rk.traders@demoupi`, which is exactly what the lab's own log says it showed each visitor. Saved in
+`kane/results/lab-check-2026-11-25T072313+0000.json`; these runs are the recordings in `kane/recordings/`.
+
+The run before it, on the five original sites: Wed 25 Nov 2026, 11:13 IST, 5 of 5, in
+`kane/results/lab-check-2026-11-25T054304+0000.json`.
