@@ -155,3 +155,25 @@ def test_red_flag_labels_are_plain_words():
     _, signs = rules.score("URGENT: your KYC is pending, account blocked. Pay Rs 10 at http://x.example")
     labels = {s.label for s in signs}
     assert {"Says your KYC, PAN or Aadhaar must be updated", "Pushes you to act right now", "Contains a link"} <= labels
+
+
+EXPECTED_TYPE = {"kyc": "kyc_phishing", "parcel": "delivery_phishing", "trading": "investment_trading",
+                 "job": "job_task", "electricity": "utility_bill", "loan": "loan_offer"}
+
+
+@pytest.mark.parametrize("key", sorted(EXPECTED_TYPE))
+def test_every_practice_lure_is_a_scam_on_rules_alone(key):
+    """Offline mode has only the rules: each practice site's message, with its link, must still read as a scam."""
+    from app import rules
+    from app.lab.sites import SITES
+    site = next(s for s in SITES if s.key == key)
+    text = f"{site.lure} http://127.0.0.1:8000/lab/{key}"
+    value, _ = rules.score(text)
+    assert value >= 0.5 and rules.scam_type(text) == EXPECTED_TYPE[key]
+
+
+@pytest.mark.parametrize("text", ["Your loan EMI of Rs 4,500 is due. Pay today via the HDFC app.",
+                                  "Please update the sheet today"])
+def test_ordinary_reminders_stay_below_the_line(text):
+    from app import rules
+    assert rules.score(text)[0] < 0.5
