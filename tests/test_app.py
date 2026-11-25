@@ -65,12 +65,12 @@ def test_check_a_message(client):
     scam = client.post("/api/check", json={"text": "URGENT: your KYC is pending, account will be blocked today. "
                                                    "Update: http://127.0.0.1:8000/lab/kyc"}).json()
     assert scam["verdict"] == "scam" and "KYC" in scam["headline"] and any("1930" in a for a in scam["advice"])
-    assert "Contains a link" in scam["red_flags"] and scam["investigations"][0]["case_id"] is None
+    assert "Contains a link" in scam["red_flags"] and scam["links"] == ["http://127.0.0.1:8000/lab/kyc"]
     legit = client.post("/api/check", json={"text": "Your OTP for HDFC Bank login is 482913. "
                                                     "Do not share it with anyone."}).json()
-    assert legit["verdict"] == "not_scam" and legit["investigations"] == []
+    assert legit["verdict"] == "not_scam" and legit["links"] == []
     apk = client.post("/api/check", json={"text": "Get your refund, install https://x.example/Refund.apk"}).json()
-    assert apk["investigations"] == [] and any("APK" in f for f in apk["red_flags"])
+    assert apk["links"] == [] and apk["apks"] and any("APK" in f for f in apk["red_flags"])
 
 
 def test_evidence_pack(client):
