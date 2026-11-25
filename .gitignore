@@ -1,0 +1,11 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+*.db
+*.db-*
+out/
+node_modules/
+.kane/
+.testmuai/
+.DS_Store
