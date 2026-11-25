@@ -31,6 +31,7 @@ import sys
 import tempfile
 import time
 import urllib.request
+import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -51,8 +52,29 @@ INFRA = ("not_started", "error")  # Kane could not run: not something the coding
 BROWSER_GONE = re.compile(r"TargetClosedError|browser has been closed|context or browser has been closed", re.I)
 
 
+# Kane's own planner could not be reached (seen on 25 Nov 2026: DNS failed for a few minutes, Kane "produced no action
+# for 3 consecutive steps"). Kane logs these lines in its evidence pack; an outage on Kane's side, not the app's.
+KANE_API_DOWN = re.compile(r"PM: API error|PM: No response or parse error")
+MAX_LOG_BYTES = 4_000_000
+
+
+def kane_api_down(r: KaneResult) -> bool:
+    """True when no assertion failed and Kane's run log in the evidence pack shows its planner API unreachable."""
+    if any(str(s.get("remark", "")).lower().startswith("assert") for s in r.steps if s.get("status") == "failed"):
+        return False  # Kane reached a verdict on the app: that is a real failure
+    try:
+        with zipfile.ZipFile(r.evidence_path) as z:
+            for name in z.namelist():
+                if name.endswith("run.log") and z.getinfo(name).file_size <= MAX_LOG_BYTES:
+                    if KANE_API_DOWN.search(z.read(name).decode("utf-8", "replace")):
+                        return True
+    except (OSError, zipfile.BadZipFile, KeyError, ValueError):
+        return False
+    return False
+
+
 def is_infra(r: KaneResult) -> bool:
-    return r.status in INFRA or bool(BROWSER_GONE.search(r.reason or ""))
+    return r.status in INFRA or bool(BROWSER_GONE.search(r.reason or "")) or kane_api_down(r)
 
 
 @dataclass

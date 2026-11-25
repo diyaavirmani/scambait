@@ -139,6 +139,20 @@ that only used the test stand-in (`tests/fixtures/fake_kane.py`) are never liste
   wants my UPI PIN. Whose name will show when I pay?" The second try was not needed in these three runs. Both runs are
   in `kane/results/k05-real-models-*.json`.
 
+### 9. A network outage was reported to the agent as a bug in the app (Wed 25 Nov 2026, 13:51 IST)
+
+- **Run:** `make ship` with every Kane test. The deploy was refused, which was right, but for the wrong reason: K01
+  was marked **failed** ("AP produced no action for 3 consecutive steps"), and K05 to K07 could not start ("Project
+  and folder must be configured"). K08 to K14 passed a few minutes later.
+- **What Kane's evidence showed:** the screenshot was the normal console, and Kane's own run log said
+  `PM: API error - [Errno 8] nodename nor servname provided, or not known` over and over. DNS on this machine had
+  failed for a few minutes, so Kane's planner could not be reached and never acted. In hook mode the gate would have
+  told the coding agent to "fix the code" for a network blip.
+- **Fix** (`scripts/kane_gate.py`): when no assertion failed and Kane's run log in its evidence pack shows its planner
+  API unreachable, the result is infrastructure, not a failure: it never blocks the agent, and `make ship` still
+  refuses to deploy until Kane can sign off. A failed assertion is always a real failure, whatever the log says.
+  `tests/test_kane_gate.py` checks both, and the rule was checked against this run's real evidence pack.
+
 ## Latest practice-lab score
 
 Wed 25 Nov 2026, 12:53 IST, with the rotating-payee site added: **6 of 6 correct**, every site passed, 0 pay-button

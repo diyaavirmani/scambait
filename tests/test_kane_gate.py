@@ -131,3 +131,35 @@ def test_stop_hook_is_configured():
     cfg = json.loads((ROOT / ".claude" / "settings.json").read_text())
     cmd = cfg["hooks"]["Stop"][0]["hooks"][0]["command"]
     assert "kane_gate.py --hook" in cmd
+
+
+def _pack(tmp_path, log: str) -> str:
+    import zipfile
+    path = tmp_path / "pack.evidence"
+    with zipfile.ZipFile(path, "w") as z:
+        z.writestr("tests/t1/logs/0-run.log", log)
+    return str(path)
+
+
+OUTAGE_LOG = ("[BrowserRunner] PM: API error - [Errno 8] nodename nor servname provided, or not known\n"
+              "[BrowserRunner] PM: No response or parse error\n")
+
+
+@pytest.mark.parametrize("remark,log,infra", [
+    ("agent_info: AP produced no action for 3 consecutive steps", OUTAGE_LOG, True),
+    ("agent_info: AP produced no action for 3 consecutive steps", "[BrowserRunner] step done\n", False),
+    ("assert: Meena's reply mentions Bharat Unity Bank", OUTAGE_LOG, False),
+])
+def test_kane_planner_outage_is_infra_but_a_failed_assertion_is_not(tmp_path, remark, log, infra):
+    r = result("failed", "AP produced no action", steps=[{"step": 5, "status": "failed", "remark": remark}])
+    r.evidence_path = _pack(tmp_path, log)
+    assert gate.is_infra(r) is infra
+
+
+def test_a_missing_or_broken_evidence_pack_is_not_infra(tmp_path):
+    r = result("failed", "x", steps=[{"step": 1, "status": "failed", "remark": "agent_info: no action"}])
+    r.evidence_path = str(tmp_path / "missing.evidence")
+    assert gate.is_infra(r) is False
+    (tmp_path / "bad.evidence").write_text("not a zip")
+    r.evidence_path = str(tmp_path / "bad.evidence")
+    assert gate.is_infra(r) is False

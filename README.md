@@ -89,7 +89,7 @@ practice lab run again after a change to the investigator, so a fix that breaks 
 
 Kane also tests the app on the real models. Its K05 test (does Meena use what Kane proved?) passed 0 of 3 against
 Cerebras before a fix to Meena's instructions and 3 of 3 after (`kane/results/k05-real-models-*.json`). What Kane
-caught while this was built, eight problems in all, is in the [Kane log](docs/kane-log.md).
+caught while this was built, nine problems in all, is in the [Kane log](docs/kane-log.md).
 
 ## Screenshots
 
