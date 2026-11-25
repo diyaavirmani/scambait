@@ -27,8 +27,8 @@ def test_guard(raw, out_has, flag):
 
 
 def test_guard_cuts_long_replies_and_strips_dashes():
-    text, flags = guard("Oh dear — wait. " + "I am confused. " * 40)
-    assert len(text) <= meena.MAX_REPLY + 3 and "—" not in text
+    text, flags = guard("Oh dear " + chr(0x2014) + " wait. " + "I am confused. " * 40)
+    assert len(text) <= meena.MAX_REPLY + 3 and chr(0x2014) not in text
 
 
 def test_language():

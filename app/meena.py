@@ -68,8 +68,8 @@ def finding_sentence(inv: dict) -> str:
 
 
 # ---------- the guard ----------
-EM_DASH = "—"
-EMOJI = re.compile("[\U0001F000-\U0001FAFF☀-➿⬀-⯿⌀-⏿️‍]")
+EM_DASH = chr(0x2014)
+EMOJI = re.compile("[" + "".join(chr(a) + "-" + chr(b) for a, b in ((0x1F000, 0x1FAFF), (0x2600, 0x27BF), (0x2B00, 0x2BFF), (0x2300, 0x23FF), (0xFE0F, 0xFE0F), (0x200D, 0x200D))) + "]")  # pictographs, built from code points
 LEAK = re.compile(
     r"\b(?:i\s*(?:am|'m)\s+(?:an?\s+)?(?:ai|a\.i\.|bot|chat\s*bot|robot|language\s+model|assistant|program|computer)\b"
     r"|as\s+an?\s+(?:ai|language\s+model|assistant)\b|language\s+model|\bllm\b|system\s+prompt|my\s+(?:instructions|"
