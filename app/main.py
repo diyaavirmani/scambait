@@ -54,11 +54,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         await rt.store.close()
 
     app = FastAPI(title="SCAM-BAIT", lifespan=lifespan)
-    from app import bus, cases, check, console, evidence_pack, telegram, web
+    from app import bus, cases, check, console, evidence_pack, honeypot, networks, telegram, web
     from app.investigate import api as investigations
     from app.lab import router as lab
-    for router in (bus.router, cases.router, check.router, console.router, evidence_pack.router, telegram.router,
-                   investigations.router, lab, web.router):
+    for router in (bus.router, cases.router, check.router, console.router, evidence_pack.router, honeypot.router,
+                   networks.router, telegram.router, investigations.router, lab, web.router):
         app.include_router(router)
 
     @app.get("/health")
