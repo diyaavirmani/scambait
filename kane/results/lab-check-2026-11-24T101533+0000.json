@@ -1,0 +1,98 @@
+{
+  "started": "2026-11-24T10:15:33+00:00",
+  "correct": 4,
+  "of": 5,
+  "kane_cmd": "kane-cli",
+  "sites": [
+    {
+      "site": "kyc",
+      "expected": [
+        "bharatunity.kyc@demoupi",
+        "10"
+      ],
+      "got": [
+        "bharatunity.kyc@demoupi",
+        "10"
+      ],
+      "pay_button_presses": 0,
+      "reached_payment_step": true,
+      "correct": true,
+      "status": "passed",
+      "credits": 30.19161,
+      "duration_s": 104.1,
+      "steps": 10
+    },
+    {
+      "site": "parcel",
+      "expected": [
+        "quickparcel.customs@demoupi",
+        "49"
+      ],
+      "got": [
+        "",
+        ""
+      ],
+      "pay_button_presses": 0,
+      "reached_payment_step": true,
+      "correct": false,
+      "status": "failed",
+      "credits": 33.48226499999999,
+      "duration_s": 99.2,
+      "steps": 14
+    },
+    {
+      "site": "trading",
+      "expected": [
+        "000987654321",
+        "33210"
+      ],
+      "got": [
+        "000987654321",
+        "33210"
+      ],
+      "pay_button_presses": 0,
+      "reached_payment_step": true,
+      "correct": true,
+      "status": "passed",
+      "credits": 35.314029999999995,
+      "duration_s": 97.3,
+      "steps": 6
+    },
+    {
+      "site": "job",
+      "expected": [
+        "taskearn.vip@demoupi",
+        "2000"
+      ],
+      "got": [
+        "taskearn.vip@demoupi",
+        "2000"
+      ],
+      "pay_button_presses": 0,
+      "reached_payment_step": true,
+      "correct": true,
+      "status": "passed",
+      "credits": 27.3804425,
+      "duration_s": 91.2,
+      "steps": 10
+    },
+    {
+      "site": "electricity",
+      "expected": [
+        "citylight.bill@demoupi",
+        "1280"
+      ],
+      "got": [
+        "citylight.bill@demoupi",
+        "1280"
+      ],
+      "pay_button_presses": 0,
+      "reached_payment_step": true,
+      "correct": true,
+      "status": "passed",
+      "credits": 29.855748499999994,
+      "duration_s": 93.6,
+      "steps": 6
+    }
+  ]
+}

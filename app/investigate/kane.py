@@ -52,8 +52,8 @@ def parse_stream(stdout: str, stderr: str = "", exit_code: Optional[int] = None)
     """Turn Kane's NDJSON stdout (and stderr, for the evidence path) into a KaneResult.
 
     Every finished step line is kept in order. Step numbers repeat across Kane's child agents (a bifurcated
-    objective runs as several flows), so they cannot be used as keys: an earlier version did that and lost the
-    parent flow's steps when a child reused the number."""
+    objective runs as several flows), so they cannot be used as keys: keying by number drops the parent flow's
+    steps when a child reuses the number (docs/kane-log.md, catch 4)."""
     finished: list[dict] = []
     run_end: Optional[dict] = None
     for line in stdout.splitlines():

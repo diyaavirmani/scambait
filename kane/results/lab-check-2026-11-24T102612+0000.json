@@ -1,0 +1,98 @@
+{
+  "started": "2026-11-24T10:26:12+00:00",
+  "correct": 4,
+  "of": 5,
+  "kane_cmd": "kane-cli",
+  "sites": [
+    {
+      "site": "kyc",
+      "expected": [
+        "bharatunity.kyc@demoupi",
+        "10"
+      ],
+      "got": [
+        "bharatunity.kyc@demoupi",
+        "10"
+      ],
+      "pay_button_presses": 0,
+      "reached_payment_step": true,
+      "correct": true,
+      "status": "passed",
+      "credits": 44.1196575,
+      "duration_s": 118.2,
+      "steps": 14
+    },
+    {
+      "site": "parcel",
+      "expected": [
+        "quickparcel.customs@demoupi",
+        "49"
+      ],
+      "got": [
+        "quickparcel.customs@demoupi",
+        "49"
+      ],
+      "pay_button_presses": 0,
+      "reached_payment_step": true,
+      "correct": true,
+      "status": "passed",
+      "credits": 23.879907499999998,
+      "duration_s": 86.8,
+      "steps": 9
+    },
+    {
+      "site": "trading",
+      "expected": [
+        "000987654321",
+        "33210"
+      ],
+      "got": [
+        "000987654321",
+        "33210"
+      ],
+      "pay_button_presses": 0,
+      "reached_payment_step": true,
+      "correct": true,
+      "status": "passed",
+      "credits": 41.2063275,
+      "duration_s": 114.0,
+      "steps": 7
+    },
+    {
+      "site": "job",
+      "expected": [
+        "taskearn.vip@demoupi",
+        "2000"
+      ],
+      "got": [
+        "taskearn.vip@demoupi",
+        "2000"
+      ],
+      "pay_button_presses": 0,
+      "reached_payment_step": true,
+      "correct": true,
+      "status": "passed",
+      "credits": 36.772270000000006,
+      "duration_s": 124.9,
+      "steps": 9
+    },
+    {
+      "site": "electricity",
+      "expected": [
+        "citylight.bill@demoupi",
+        "1280"
+      ],
+      "got": [
+        "",
+        ""
+      ],
+      "pay_button_presses": 2,
+      "reached_payment_step": true,
+      "correct": false,
+      "status": "failed",
+      "credits": 36.91695999999999,
+      "duration_s": 125.4,
+      "steps": 10
+    }
+  ]
+}
