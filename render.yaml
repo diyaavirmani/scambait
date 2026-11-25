@@ -22,7 +22,7 @@ services:
       - key: TELEGRAM_WEBHOOK_SECRET
         sync: false
       - key: KANE_CMD
-        value: python scripts/kane_replay.py
+        value: python /opt/render/project/src/scripts/kane_replay.py   # absolute: Kane runs with out/kane as its working folder
       - key: CONSOLE_ENABLED
         value: "1"
       - key: LIVE_INVESTIGATION
