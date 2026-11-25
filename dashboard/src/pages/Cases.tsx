@@ -22,7 +22,9 @@ async function download(caseId: string, ext: 'csv' | 'pdf'): Promise<string> {
   return sha;
 }
 
-const WRITER: Record<string, string> = { cerebras: 'Cerebras', openai: 'OpenAI (Cerebras was down)', offline: 'built from the case data (offline mode)' };
+const WRITER: Record<string, string> = {
+  cerebras: 'Written by Cerebras', openai: 'Written by OpenAI (Cerebras was down)', offline: 'Built from the case data (offline mode, no model)',
+};
 
 const Report = ({ report }: { report: CaseReport }) => (
   <div className="space-y-3 text-sm">
@@ -39,7 +41,7 @@ const Report = ({ report }: { report: CaseReport }) => (
     {report.recommended_action && (
       <p className="rounded-lg bg-amber-50 border border-amber-200 text-amber-900 px-3 py-2">
         <span className="font-semibold">Recommended action: </span>{report.recommended_action}</p>)}
-    <p className="text-xs text-slate-500">Risk {report.risk}. Written by {WRITER[report.generated_by] || report.generated_by} at {when(report.generated_at)}, naming only identifiers said in the chat or proven by Kane.</p>
+    <p className="text-xs text-slate-500">Risk {report.risk}. {WRITER[report.generated_by] || 'Written by ' + report.generated_by} at {when(report.generated_at)}, naming only identifiers said in the chat or proven by Kane.</p>
   </div>
 );
 

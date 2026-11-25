@@ -2,7 +2,7 @@ import { CheckCircle2, CircleSlash, Loader2, AlertTriangle, Shuffle } from 'luci
 import type { Investigation } from '../lib/types';
 import { isRecheck, isRunning, rupees, shortUrl, statusText } from '../lib/kane';
 
-const BADGE = 'ml-2 align-middle text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-white border border-slate-300 text-slate-600';
+const BADGE = 'ml-2 inline-block whitespace-nowrap align-middle text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-white border border-slate-300 text-slate-600';
 
 /** The payee-rotation probe on this card's link: which payees Kane saw when it opened the link as fresh visitors. */
 const RotationNote = ({ inv }: { inv: Investigation }) => {
