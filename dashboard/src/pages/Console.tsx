@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { Loader2, RotateCcw, Send, Sparkles } from 'lucide-react';
+import { FileText, Loader2, RotateCcw, Send, Sparkles } from 'lucide-react';
 import { useCase } from '../lib/live';
 import type { LabSite } from '../lib/types';
 import { Empty, PageHeader, Panel, VerdictBadge } from '../components/Layout';
@@ -84,6 +84,23 @@ export const Console = () => {
     }
   }
 
+  async function endChat() {
+    if (busy) return;
+    setBusy(true);
+    setError('');
+    try {
+      const r = await fetch('/api/console/end', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ session_id: session }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.detail || 'Could not end the chat (HTTP ' + r.status + ')');
+    } catch (err: any) {
+      setError(err?.message || 'Something went wrong');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function reset() {
     setSession(newSession());
     setCaseId(null);
@@ -98,9 +115,17 @@ export const Console = () => {
       <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
         <div className="xl:col-span-3">
           <Panel title="Chat with Meena" right={
-            <button type="button" onClick={reset} aria-label="Start a new chat" className="text-sm flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
-              <RotateCcw size={14} /> New chat
-            </button>}>
+            <div className="flex gap-2">
+              {cd && cd.case.status !== 'closed' && (
+                <button type="button" onClick={endChat} disabled={busy} aria-label="End this chat and write the case report"
+                  className="text-sm flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50">
+                  <FileText size={14} aria-hidden /> End chat
+                </button>
+              )}
+              <button type="button" onClick={reset} aria-label="Start a new chat" className="text-sm flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
+                <RotateCcw size={14} /> New chat
+              </button>
+            </div>}>
             <div className="mb-4">
               <div className="text-xs font-semibold uppercase text-slate-500 mb-2 flex items-center gap-1.5"><Sparkles size={13} /> Try a practice scam (fictional sites)</div>
               <div className="flex flex-wrap gap-2">
@@ -129,6 +154,12 @@ export const Console = () => {
               {busy && <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 size={14} className="animate-spin" /> Meena is typing...</div>}
               <div ref={bottom} />
             </div>
+            {cd && cd.case.status === 'closed' && (
+              <p role="status" className="mt-4 text-sm rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-slate-700">
+                This chat has ended. {cd.case.report ? 'Its case report is ready' : 'Its case report is being written'}:{' '}
+                <a href={'/cases?case=' + cd.case.id} className="text-blue-700 hover:underline">open the case</a>. Press New chat to start another.
+              </p>
+            )}
             <form onSubmit={send} className="mt-4 flex gap-2">
               <label htmlFor="console-input" className="sr-only">Message to Meena</label>
               <input id="console-input" value={text} onChange={(e) => setText(e.target.value)} maxLength={4000}

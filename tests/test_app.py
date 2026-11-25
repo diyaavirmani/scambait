@@ -123,3 +123,20 @@ def test_csv_cells_cannot_run_as_formulas():
     assert csv_cell("+919000000001") == "+919000000001"
     assert csv_cell("=HYPERLINK(\"x\")").startswith("'") and csv_cell("+cmd|' /C calc'!A0").startswith("'")
     assert csv_cell("@SUM(A1)").startswith("'") and csv_cell("-2+3").startswith("'")
+
+
+def test_ending_a_console_chat_closes_it_and_writes_the_report(client):
+    first = client.post("/api/console/messages", json={"session_id": "endme", "text": "Your KYC is pending, account "
+                                                       "blocked today, pay Rs 10 to fakeinvest.demo@okaxis"}).json()
+    assert client.post("/api/console/end", json={"session_id": "someone-else"}).status_code == 404
+    assert client.post("/api/console/end", json={"session_id": "bad id!"}).status_code == 400
+    r = client.post("/api/console/end", json={"session_id": "endme"})
+    assert r.status_code == 200 and r.json() == {"case_id": first["case_id"], "status": "closed"}
+    import time
+    for _ in range(50):  # the report is written in the background
+        case = client.get(f"/api/cases/{first['case_id']}").json()["case"]
+        if case["report"]:
+            break
+        time.sleep(0.05)
+    assert case["status"] == "closed" and case["report"]["case_id"] == first["case_id"]
+    assert client.post("/api/console/end", json={"session_id": "endme"}).status_code == 404
