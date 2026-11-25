@@ -150,10 +150,12 @@ def kill_tree(pid: int) -> None:
 
 async def run_kane(objective: str, url: str, *, cmd: str = "kane-cli", timeout_s: int = 240, max_steps: int = 40,
                    headless: bool = True, workdir: str = "out/kane", username: str = "",
-                   access_key: str = "", agent: str = "scambait-investigator", grace_s: int = 60) -> KaneResult:
+                   access_key: str = "", agent: str = "scambait-investigator", grace_s: int = 60,
+                   env: Optional[dict[str, str]] = None) -> KaneResult:
     """Run one Kane objective. Never raises for a failed run; returns status=error if Kane could not be started.
     agent tags the run (KANE_CLI_USER_AGENT), so investigator runs and test runs are told apart in TestMu.
-    Kane gets timeout_s to stop itself; grace_s later the whole process tree is killed and the run is a timeout."""
+    Kane gets timeout_s to stop itself; grace_s later the whole process tree is killed and the run is a timeout.
+    env: extra environment for the command (the replay investigator reads KANE_REPLAY_VISIT from it)."""
     workdir = str(Path(workdir).resolve())
     Path(workdir).mkdir(parents=True, exist_ok=True)
     args = build_command(objective, url, cmd=cmd, timeout_s=timeout_s, max_steps=max_steps, headless=headless,
@@ -163,7 +165,7 @@ async def run_kane(objective: str, url: str, *, cmd: str = "kane-cli", timeout_s
         proc = await asyncio.create_subprocess_exec(
             *args, cwd=workdir, stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
-            env={**os.environ, "KANE_CLI_USER_AGENT": agent})
+            env={**os.environ, **(env or {}), "KANE_CLI_USER_AGENT": agent})
     except (FileNotFoundError, PermissionError) as exc:
         return KaneResult(status="error", exit_code=None, reason=f"Kane CLI could not be started: {exc}")
     try:

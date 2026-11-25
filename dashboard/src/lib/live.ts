@@ -73,9 +73,22 @@ function applyKane(list: Investigation[], ev: Ev): Investigation[] {
     asked_for: [], summary: '', reason: '', evidence: false, evidence_sha256: '', created_at: ev.ts,
   };
   const next: Investigation = ev.type === 'kane.started'
-    ? { ...base, status: 'running', url: d.url || base.url }
+    ? { ...base, status: 'running', url: d.url || base.url, recheck_of: d.recheck_of ?? base.recheck_of }
     : { ...base, ...d, id, asked_for: d.asked_for || base.asked_for, finished_at: ev.ts };
-  return i >= 0 ? list.map((x, j) => (j === i ? next : x)) : [...list, next];
+  return shareRotation(i >= 0 ? list.map((x, j) => (j === i ? next : x)) : [...list, next], next);
+}
+
+/** A finished re-check carries the rotation facts of its whole link: copy them to the link's other runs, each with
+ *  its own visit number and new_payee, so the first card learns that the payee changed. */
+export function shareRotation(list: Investigation[], from: Investigation): Investigation[] {
+  const r = from.rotation;
+  if (!r || from.recheck_of == null) return list;
+  return list.map((x) => {
+    if (x.id === from.id || (x.id !== r.first_id && x.recheck_of !== r.first_id)) return x;
+    const first = x.id === r.first_id;
+    return { ...x, rotation: { ...r, visit: first ? 1 : r.rechecks.indexOf(x.id) + 2,
+      new_payee: !first && r.payees.some((p) => p.investigation_id === x.id) } };
+  });
 }
 
 /** Apply one live event to a loaded case. Events already in the case (same id) are skipped. */

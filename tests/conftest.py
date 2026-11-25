@@ -27,7 +27,8 @@ async def store(tmp_path):
 def settings(tmp_path):
     return Settings(offline_mode=True, db_path=str(tmp_path / "test.db"), data_dir=str(tmp_path / "out"),
                     kane_cmd=f"{sys.executable} {FAKE_KANE}", kane_workdir=str(tmp_path / "kane"),
-                    telegram_auto_webhook=False, api_key="")
+                    telegram_auto_webhook=False, api_key="",
+                    kane_rotation_checks=0)  # one Kane run per link; tests/test_rotation.py turns the re-checks on
 
 
 @pytest.fixture

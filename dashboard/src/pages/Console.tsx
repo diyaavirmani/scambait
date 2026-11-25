@@ -27,7 +27,7 @@ function keep(key: string, value: string | null) {
 
 const SHORT: Record<string, string> = {
   kyc: 'Bank KYC update', parcel: 'Parcel customs fee', trading: 'Trading profit withdrawal',
-  job: 'Part-time task job', electricity: 'Electricity disconnection',
+  job: 'Part-time task job', electricity: 'Electricity disconnection', loan: 'Instant loan fee',
 };
 
 /** Play the scammer against Meena in the browser. Every link you send is opened by Kane. */

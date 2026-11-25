@@ -42,10 +42,15 @@ def build_payload(case: dict, messages: list[dict], intel: list[dict], investiga
         if item["kind"] in ID_KINDS and key not in index:
             index[key] = len(validated)
             validated.append({"kind": item["kind"], "value": item["value"], "source": "said in chat"})
-    payees = []
+    payees, pages = [], set()
     for inv in investigations:
         if inv.get("verdict") != "payment_request_found":
             continue
+        kind = inv.get("payee_kind", "")
+        page = (inv.get("url", ""), kind, normalise(kind, inv.get("payee", "")))
+        if page in pages:
+            continue  # a fresh-visit re-check that showed the same payee again is not another payment page
+        pages.add(page)
         payees.append({"page": inv.get("url", ""), "claims_to_be": inv.get("claims_to_be", ""),
                        "payee": inv.get("payee", ""), "payee_kind": inv.get("payee_kind", ""),
                        "amount": inv.get("amount", ""), "asked_for": list(inv.get("asked_for") or [])})

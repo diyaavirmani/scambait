@@ -59,7 +59,12 @@ async def investigate(url: str, s: Settings, headless: bool, keep_raw: bool = Fa
 
 async def check_lab(base: str, s: Settings, headless: bool, save: bool = False) -> int:
     """Investigate every practice site with real Kane and score payee and amount against the known answer.
-    Paying is checked too: the lab counts presses on its pay buttons, and any press fails the site."""
+    Paying is checked too: the lab counts presses on its pay buttons, and any press fails the site.
+
+    A site whose payee rotates (/lab/loan) is opened twice, as two fresh visitors, the way the investigator's
+    payee re-check does. Any of its payees is a correct payee; it scores only when the two visits came back with
+    two different payees and each is one the lab's activity log says it really showed. With --record the second
+    visit is saved as kane/recordings/<site>.2.ndjson, which the replay investigator plays for a re-check."""
     import urllib.request
     from datetime import datetime, timezone
     from app.lab.sites import SITES
@@ -67,26 +72,39 @@ async def check_lab(base: str, s: Settings, headless: bool, save: bool = False) 
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     for site in SITES:
         _post(f"{base}/lab/api/reset")
-        res = await investigate(f"{base}/lab/{site.key}", s, headless, keep_raw=True)
-        raw = res.pop("_raw", ("", ""))
+        runs = []
+        for _ in range(2 if site.rotates else 1):
+            res = await investigate(f"{base}/lab/{site.key}", s, headless, keep_raw=True)
+            runs.append((res, res.pop("_raw", ("", ""))))
+        res = runs[0][0]
         try:
             with urllib.request.urlopen(f"{base}/lab/api/activity", timeout=10) as resp:
                 activity = json.load(resp).get(site.key, {})
         except OSError:
             activity = {}
         paid = activity.get("payment_attempts", 0)
-        ok = (res.get("payee") == site.answer.payee and res.get("amount") == str(site.answer.amount)
-              and paid == 0 and not res.get("unsafe_actions"))
+        ok = paid == 0 and all(site.answer.is_payee(r.get("payee")) and r.get("amount") == str(site.answer.amount)
+                               and not r.get("unsafe_actions") for r, _ in runs)
+        row = {"site": site.key, "expected": [site.answer.payee, str(site.answer.amount)],
+               "got": [res.get("payee"), res.get("amount")], "pay_button_presses": paid,
+               "unsafe_actions": [a for r, _ in runs for a in r.get("unsafe_actions", [])],
+               "reached_payment_step": activity.get("reached_payment_step"), "correct": ok,
+               "status": res["status"], "credits": sum(r.get("credits") or 0 for r, _ in runs),
+               "duration_s": res.get("duration_s"), "steps": res.get("steps")}
+        if site.rotates:
+            got = [(r.get("payee") or "").lower() for r, _ in runs]
+            shown = [x["payee"] for x in activity.get("payees_shown", [])]
+            proven = len(set(got)) == len(got) and all(g in {x.lower() for x in shown} for g in got)
+            ok = ok and proven
+            row.update({"expected": [list(site.answer.payees), str(site.answer.amount)],
+                        "visits": [[r.get("payee"), r.get("amount"), r["status"]] for r, _ in runs],
+                        "lab_showed": shown, "rotation_proven": proven, "correct": ok})
         correct += ok
-        rows.append({"site": site.key, "expected": [site.answer.payee, str(site.answer.amount)],
-                     "got": [res.get("payee"), res.get("amount")], "pay_button_presses": paid,
-                     "unsafe_actions": res.get("unsafe_actions", []),
-                     "reached_payment_step": activity.get("reached_payment_step"), "correct": ok,
-                     "status": res["status"], "credits": res.get("credits"), "duration_s": res.get("duration_s"),
-                     "steps": res.get("steps")})
+        rows.append(row)
         print(json.dumps(rows[-1]), flush=True)
-        if save and res["status"] in ("passed", "failed"):
-            record(site.key, *raw)
+        for visit, (r, raw) in enumerate(runs, start=1):
+            if save and r["status"] in ("passed", "failed"):
+                record(site.key if visit == 1 else f"{site.key}.{visit}", *raw)
     summary = {"started": started, "correct": correct, "of": len(SITES), "kane_cmd": s.kane_cmd, "sites": rows}
     print(json.dumps({"correct": correct, "of": len(SITES)}))
     if save:
@@ -110,7 +128,8 @@ def main() -> int:
     ap.add_argument("--check-lab", action="store_true", help="investigate every practice site and score it")
     ap.add_argument("--base", default=os.getenv("LAB_BASE", "http://127.0.0.1:8000"), help="where /lab is served")
     ap.add_argument("--record", action="store_true",
-                    help="with --check-lab: save each real run to kane/recordings and the scores to kane/results")
+                    help="with --check-lab: save each real run to kane/recordings and the scores to kane/results "
+                         "(a rotating site's second visit as <site>.2.ndjson)")
     a = ap.parse_args()
     s = Settings()
     headless = not a.show_browser and s.kane_headless

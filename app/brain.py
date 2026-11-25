@@ -116,6 +116,16 @@ LINK_TURN = ("Strategy: this person is a scammer. Meena's grandson has just open
              "say you cannot read it. Never write the UPI ID, account number or link itself.")
 
 
+CHANGE_TURN = ("Strategy: this person is a scammer. Meena's grandson opened the link they sent again, as a new "
+               "visitor, and this time the page named someone else to pay (LINK CHECK below). This reply has one job: "
+               "after a few words answering their last message, Meena says, worried and confused, that the page now "
+               "shows a different name to pay than before, and asks them which account is the right one. Two or "
+               "three short sentences. In this reply do not ask them to repeat, spell or resend anything. Never write "
+               "the UPI ID, account number or link itself.")
+CHANGE_TOO = ("The LINK CHECK also says the page showed a different name to pay when it was opened again: say that "
+              "too, and ask which account is the right one.")
+
+
 def _insist(findings: list[dict]) -> str:
     inv = findings[0]
     must = [x for x in (inv.get("claims_to_be"), f"Rs {inv['amount']}" if inv.get("amount") else "") if x]
@@ -123,10 +133,23 @@ def _insist(findings: list[dict]) -> str:
             + " and asks for ".join(must) + ".") if must else ""
 
 
+def _insist_change() -> str:
+    return ("Your last draft did not say that the page now shows a different name to pay. This reply must say the "
+            "name or account changed and ask which one is right.")
+
+
 def persona_messages(ctx: Context) -> list[dict]:
     strategy = STRATEGY.get(ctx.mode, STRATEGY["bait"])
     if ctx.mode == "bait" and ctx.findings:
-        strategy = LINK_TURN + (" " + _insist(ctx.findings) if ctx.insist else "")
+        # A fresh-visit re-check's news is that the payee changed (meena.is_recheck), not the brand and amount again.
+        first = [f for f in ctx.findings if not meena.is_recheck(f)]
+        changed = [f for f in ctx.findings if meena.is_recheck(f)]
+        if first:
+            strategy = LINK_TURN + (" " + _insist(first) if ctx.insist else "")
+            if changed:
+                strategy += " " + CHANGE_TOO + (" " + _insist_change() if ctx.insist else "")
+        else:
+            strategy = CHANGE_TURN + (" " + _insist_change() if ctx.insist else "")
     elif ctx.mode == "bait" and ctx.missing:
         strategy += " If it fits after answering, you may also ask about " + meena.ASK_FOR[ctx.missing[0]] + "."
     facts = "\n".join(f"- {f}" for f in ctx.facts) or "- (none yet)"

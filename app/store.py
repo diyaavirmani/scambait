@@ -1,7 +1,8 @@
 """SQLite store: one aiosqlite connection, WAL mode, every write behind one lock.
 
 Tables: cases, messages, intel, events, evidence, investigations (Kane runs), seen (idempotency keys).
-JSON columns in investigations (asked_for, final_state, steps) are decoded on read.
+JSON columns in investigations (asked_for, final_state, steps, rotation) are decoded on read. Columns added to a
+table after it first shipped are listed in ADDED_COLUMNS; init() adds any that an existing database lacks.
 """
 from __future__ import annotations
 
@@ -48,17 +49,27 @@ CREATE TABLE IF NOT EXISTS investigations (
     final_state TEXT NOT NULL DEFAULT '{}', summary TEXT NOT NULL DEFAULT '', reason TEXT NOT NULL DEFAULT '',
     steps TEXT NOT NULL DEFAULT '[]', credits REAL, duration_s REAL, exit_code INTEGER,
     evidence_path TEXT NOT NULL DEFAULT '', evidence_sha256 TEXT NOT NULL DEFAULT '',
-    created_at TEXT NOT NULL, finished_at TEXT, used_at TEXT
+    created_at TEXT NOT NULL, finished_at TEXT, used_at TEXT, recheck_of INTEGER,
+    rotation TEXT NOT NULL DEFAULT '{}'
 );
 CREATE INDEX IF NOT EXISTS investigations_by_case ON investigations(case_id, id);
 CREATE TABLE IF NOT EXISTS seen (key TEXT PRIMARY KEY, ts TEXT NOT NULL);
 """
 
+# (table, column, definition) for columns added after the table first shipped, so a database created before them
+# keeps working. recheck_of: the first run of a link, on a fresh-visitor payee re-check of it. rotation: the payees
+# Kane saw across that link's visits (app/investigate/__init__.py, rotation_facts).
+ADDED_COLUMNS = (
+    ("investigations", "recheck_of", "INTEGER"),
+    ("investigations", "rotation", "TEXT NOT NULL DEFAULT '{}'"),
+)
+AFTER_COLUMNS = "CREATE INDEX IF NOT EXISTS investigations_by_recheck ON investigations(recheck_of, id);"
+
 CASE_FIELDS = {"status", "verdict", "scam_type", "summary"}
 INVESTIGATION_FIELDS = {"status", "verdict", "claims_to_be", "payee", "payee_kind", "amount", "asked_for",
                         "final_state", "summary", "reason", "steps", "credits", "duration_s", "exit_code",
-                        "evidence_path", "evidence_sha256", "finished_at", "used_at"}
-JSON_FIELDS = {"asked_for": [], "final_state": {}, "steps": []}
+                        "evidence_path", "evidence_sha256", "finished_at", "used_at", "rotation"}
+JSON_FIELDS = {"asked_for": [], "final_state": {}, "steps": [], "rotation": {}}
 
 
 def _decode(row: Optional[dict]) -> Optional[dict]:
@@ -84,6 +95,11 @@ class Store:
         for pragma in ("journal_mode=WAL", "synchronous=NORMAL", "busy_timeout=5000", "foreign_keys=ON"):
             await self._db.execute(f"PRAGMA {pragma}")
         await self._db.executescript(SCHEMA)
+        for table, column, definition in ADDED_COLUMNS:
+            have = {r["name"] for r in await self._all(f"PRAGMA table_info({table})")}
+            if column not in have:
+                await self._db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+        await self._db.executescript(AFTER_COLUMNS)
         await self._db.commit()
 
     async def close(self) -> None:
@@ -208,9 +224,12 @@ class Store:
         return await self._all("SELECT * FROM evidence WHERE case_id=? ORDER BY id", (case_id,))
 
     # ---------- Kane investigations ----------
-    async def add_investigation(self, case_id: Optional[str], url: str, status: str = "queued") -> int:
-        rowid, _ = await self._write("INSERT INTO investigations (case_id, url, status, created_at) VALUES (?,?,?,?)",
-                                     (case_id, url, status, utc_now()))
+    async def add_investigation(self, case_id: Optional[str], url: str, status: str = "queued",
+                                recheck_of: Optional[int] = None) -> int:
+        """recheck_of: the first run of this link, when this row is a fresh-visitor payee re-check of it."""
+        rowid, _ = await self._write(
+            "INSERT INTO investigations (case_id, url, status, created_at, recheck_of) VALUES (?,?,?,?,?)",
+            (case_id, url, status, utc_now(), recheck_of))
         return rowid
 
     async def update_investigation(self, inv_id: int, **fields: Any) -> None:
@@ -226,10 +245,17 @@ class Store:
         return _decode(await self._one("SELECT * FROM investigations WHERE id=?", (inv_id,)))
 
     async def find_investigation(self, case_id: Optional[str], url: str) -> Optional[dict]:
+        """The newest first run of this link in this case (re-checks are never returned)."""
         where = "case_id IS NULL" if case_id is None else "case_id=?"
         params = (url,) if case_id is None else (case_id, url)
-        return _decode(await self._one(f"SELECT * FROM investigations WHERE {where} AND url=? ORDER BY id DESC LIMIT 1",
-                                       params))
+        return _decode(await self._one(f"SELECT * FROM investigations WHERE {where} AND url=? AND recheck_of IS NULL "
+                                       "ORDER BY id DESC LIMIT 1", params))
+
+    async def investigation_family(self, first_id: int) -> list[dict]:
+        """A first run and its fresh-visitor re-checks, in the order they were made."""
+        rows = await self._all("SELECT * FROM investigations WHERE id=? OR recheck_of=? ORDER BY id",
+                               (first_id, first_id))
+        return [_decode(r) for r in rows]
 
     async def list_investigations(self, case_id: Optional[str] = None, limit: int = 100) -> list[dict]:
         if case_id is None:
@@ -239,10 +265,17 @@ class Store:
         return [_decode(r) for r in rows]
 
     async def unused_findings(self, case_id: str) -> list[dict]:
-        """Payment pages Kane proved in this case that Meena has not talked about yet."""
+        """Payment pages Kane proved in this case that Meena has not talked about yet. A re-check counts only when
+        it showed a payee no earlier visit showed (rotation["payees"] names the run that first showed each one);
+        a re-check that found the same payee tells her nothing new."""
         rows = await self._all("SELECT * FROM investigations WHERE case_id=? AND verdict='payment_request_found' "
                                "AND used_at IS NULL ORDER BY id", (case_id,))
-        return [_decode(r) for r in rows]
+        out = []
+        for r in map(_decode, rows):
+            firsts = {p.get("investigation_id") for p in r["rotation"].get("payees") or []}
+            if r.get("recheck_of") is None or r["id"] in firsts:
+                out.append(r)
+        return out
 
     # ---------- idempotency ----------
     async def mark_seen(self, key: str) -> bool:

@@ -70,7 +70,7 @@ def agent_notes(reply: Reply, intel: list[dict], investigations: list[dict]) -> 
     counts = Counter(i["kind"] for i in intel)
     if counts:
         notes.append("Identifiers collected: " + ", ".join(f"{n} {k}" for k, n in sorted(counts.items())) + ".")
-    proven = sum(1 for i in investigations if i.get("verdict") == "payment_request_found")
+    proven = sum(1 for i in investigations if i.get("verdict") == "payment_request_found" and not i.get("recheck_of"))
     if proven:
         notes.append(f"Kane proved {proven} payment page{'s' if proven > 1 else ''}.")
     if reply.degraded:

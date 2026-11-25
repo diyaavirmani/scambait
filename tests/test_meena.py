@@ -170,3 +170,49 @@ def test_a_link_turn_has_its_own_strategy_and_can_insist():
     import dataclasses
     system = persona_messages(dataclasses.replace(ctx, insist=True))[0]["content"]
     assert "Bharat Unity Bank and asks for Rs 10" in system
+
+
+# A fresh-visit re-check of a rotating page (app.investigate): the page named someone else to pay this time.
+RECHECK = {"id": 2, "recheck_of": 1, "claims_to_be": "SwiftRin Loans instant personal loan",
+           "payee": "rk.traders@demoupi", "payee_kind": "upi", "amount": "799", "asked_for": ["UPI PIN"],
+           "rotation": {"first_id": 1, "visit": 2, "new_payee": True, "rotated": True,
+                        "payees": [{"payee": "swiftrin.fee@demoupi", "visit": 1, "investigation_id": 1},
+                                   {"payee": "rk.traders@demoupi", "visit": 2, "investigation_id": 2}]}}
+
+
+@pytest.mark.parametrize("text,used", [
+    ("Beta, the page now shows a different name to pay. Which one is right?", True),
+    ("Now it is showing another account, which account is correct?", True),
+    ("The UPI ID has changed, I am so confused", True),
+    ("Two names are coming on the page, which one do I pay?", True),
+    ("My grandson says it is SwiftRin again", True),
+    ("It wants 799 rupees", False),  # the amount is not the news on a re-check
+    ("I have a new phone, what is your good name?", False),
+    ("Oh dear, my glasses are blurry", False),
+])
+def test_mentions_finding_on_a_recheck(text, used):
+    assert meena.mentions_finding(text, RECHECK) is used
+
+
+def test_the_first_visit_rule_is_unchanged_for_a_page_that_is_not_a_recheck():
+    first = {**RECHECK, "recheck_of": None}
+    assert not meena.mentions_finding("My grandson says it is SwiftRin again", first)
+    assert not meena.mentions_finding("The page now shows a different name to pay", first)
+    assert meena.mentions_finding("SwiftRin wants Rs 799", first)
+
+
+def test_a_recheck_turn_asks_which_account_is_right_and_can_insist():
+    import dataclasses
+    ctx = Context(history=[{"role": "scammer", "text": "pay the fee fast"}], findings=[RECHECK])
+    system, user = (m["content"] for m in persona_messages(ctx))
+    assert "which account is the right one" in system and "different name to pay" in system
+    assert "Never write the UPI ID" in system and "whose name will show" not in system and "last draft" not in system
+    assert "now shows a different name to pay" in user and "swiftrin.fee@demoupi" in user
+    system = persona_messages(dataclasses.replace(ctx, insist=True))[0]["content"]
+    assert "did not say that the page now shows a different name to pay" in system
+    both = Context(history=ctx.history, findings=[FINDING, RECHECK])
+    system = persona_messages(both)[0]["content"]
+    assert "whose name will show" in system and "also says the page showed a different name" in system
+    system = persona_messages(dataclasses.replace(both, insist=True))[0]["content"]
+    assert "Bharat Unity Bank KYC update and asks for Rs 10" in system
+    assert "must say the name or account changed" in system

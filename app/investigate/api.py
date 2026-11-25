@@ -6,6 +6,9 @@ GET  /api/investigations/{id}/screenshots            step numbers that have a sc
 GET  /api/investigations/{id}/screenshots/{step|last} one step screenshot from Kane's evidence pack
 POST /api/investigations {"url", "case_id"?}   ask Kane to investigate a link; returns the queued row.
      Needs x-api-key when API_KEY is set. Real (non-lab) links run only with LIVE_INVESTIGATION=1.
+
+Every row has recheck_of (the first run, on a fresh-visitor payee re-check; else null) and rotation (null until the
+link has a re-check; then app.investigate.rotation_facts plus this row's visit and new_payee).
 """
 from __future__ import annotations
 
@@ -32,6 +35,7 @@ def _public(row: dict) -> dict:
     out["evidence"] = bool(row.get("evidence_path"))
     out["replayed"] = bool((row.get("final_state") or {}).get("_replayed"))
     out["unsafe_actions"] = (row.get("final_state") or {}).get("_unsafe_actions") or []
+    out["rotation"] = row.get("rotation") or None
     return out
 
 

@@ -1,4 +1,4 @@
-import type { CaseData } from '../lib/types';
+import type { CaseData, Investigation } from '../lib/types';
 import { isProven, norm, provenKeys } from '../lib/kane';
 import { Empty } from './Layout';
 
@@ -11,8 +11,10 @@ const LABEL: Record<string, string> = {
 export const EvidenceBoard = ({ cd }: { cd: CaseData }) => {
   const keys = provenKeys(cd.investigations);
   const said = new Set(cd.intel.map((i) => i.kind + ':' + norm(i.kind, i.value)));
-  const kaneOnly = cd.investigations.filter((inv) => inv.payee && inv.payee_kind
-    && !said.has(inv.payee_kind + ':' + norm(inv.payee_kind, inv.payee)));
+  const payeeKey = (inv: Investigation) => inv.payee_kind + ':' + norm(inv.payee_kind, inv.payee);
+  // once each: a fresh-visit re-check often shows the same payee again
+  const kaneOnly = cd.investigations.filter((inv, i, all) => inv.payee && inv.payee_kind
+    && !said.has(payeeKey(inv)) && all.findIndex((o) => o.payee && payeeKey(o) === payeeKey(inv)) === i);
   const rows = [
     ...cd.intel.map((i) => ({ kind: i.kind, value: i.value, proven: isProven(i, keys), saidIt: true })),
     ...kaneOnly.map((inv) => ({ kind: inv.payee_kind, value: inv.payee, proven: true, saidIt: false })),

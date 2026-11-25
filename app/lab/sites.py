@@ -3,6 +3,9 @@
 Each site walks a visitor through a few steps the way a real scam page does, and ends on a payment request.
 `Answer` is what an investigator should come back with. Every brand, bank, UPI ID, account and phone number
 here is made up: UPI IDs end in @demoupi, IFSC codes start with DEMO, phone numbers use the 90000 test range.
+
+A site whose Answer lists `payees` rotates its mule account the way real scam pages do: each fresh visitor (a
+browser without the lab's visitor cookie) is shown the next payee in that list, in its markup's {payee} slot.
 """
 from __future__ import annotations
 
@@ -35,6 +38,11 @@ class Answer:
     amount: int                 # rupees
     asked_for: tuple[str, ...]
     extra: dict[str, str] = field(default_factory=dict)
+    payees: tuple[str, ...] = ()  # a rotating site: every payee it shows, one per fresh visitor in turn (payee first)
+
+    def is_payee(self, value: str) -> bool:
+        """Whether value is a payee this site shows (any of them, on a rotating site)."""
+        return (value or "").strip().lower() in {p.lower() for p in (self.payees or (self.payee,))}
 
 
 @dataclass(frozen=True)
@@ -46,6 +54,10 @@ class Site:
     lure: str                   # the kind of message that would carry this link
     answer: Answer
     steps: tuple[Step, ...]
+
+    @property
+    def rotates(self) -> bool:
+        return len(self.answer.payees) > 1
 
 
 UPI_PIN = Field("upi_pin", "UPI PIN", "password", "Enter your 4 or 6 digit UPI PIN")
@@ -200,6 +212,38 @@ SITES: tuple[Site, ...] = (
                  "<tr><th>Amount</th><td>&#8377;1,280</td></tr>"
                  "<tr><th>Help</th><td>Electricity officer: 90000 00011</td></tr></table>",
                  fields=(UPI_PIN,), button="Pay &#8377;1,280", pay=True),
+        ),
+    ),
+    Site(
+        key="loan",
+        brand="SwiftRin Loans",
+        scam_type="loan_offer",
+        color="#0e7490",
+        lure="Congratulations! Your instant loan of Rs 50,000 is approved. Pay the small processing fee today only "
+             "and the money reaches your bank account in 10 minutes:",
+        answer=Answer(
+            claims_to_be="SwiftRin Loans instant personal loan",
+            payee_kind="upi", payee="swiftrin.fee@demoupi", amount=799,
+            asked_for=("full name", "mobile number", "PIN code", "UPI PIN"),
+            payees=("swiftrin.fee@demoupi", "rk.traders@demoupi", "metro.mart@demoupi"),
+        ),
+        steps=(
+            Step("Your loan is approved",
+                 "<p class='good'>Congratulations! An instant personal loan of <b>&#8377;50,000</b> is approved "
+                 "for you.</p><p>No documents and no credit check. The money reaches your bank account in 10 "
+                 "minutes.</p>",
+                 button="Get my loan"),
+            Step("Confirm your details",
+                 "<p>Enter your details to receive the loan.</p>",
+                 fields=(Field("full_name", "Full name"),
+                         Field("mobile", "Mobile number", "tel", "10 digit mobile number"),
+                         Field("pincode", "PIN code", placeholder="6 digit PIN code"))),
+            Step("Pay the processing fee",
+                 "<p>Pay a one-time processing fee of <b>&#8377;799</b> to release &#8377;50,000 to your "
+                 "account.</p>"
+                 "<table class='pay'><tr><th>Pay to UPI ID</th><td>{payee}</td></tr>"
+                 "<tr><th>Amount</th><td>&#8377;799</td></tr></table>",
+                 fields=(UPI_PIN,), button="Pay &#8377;799 and get my loan", pay=True),
         ),
     ),
 )

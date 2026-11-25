@@ -52,8 +52,28 @@ def language_of(text: str) -> str:
     return "hinglish" if len(HINGLISH.findall(text or "")) >= 2 else "en"
 
 
+def payee_change_sentence(inv: dict) -> str:
+    """A fresh-visitor re-check of a scam page, in plain words: whether the page now names someone else to pay.
+    inv["rotation"] is app.investigate.rotation_facts for the link, with this visit's number and new_payee."""
+    rot = inv.get("rotation") or {}
+    kind = "account" if inv.get("payee_kind") == "bank_account" else "UPI ID"
+    if not rot.get("new_payee"):
+        return f"the same page, opened again as a new visitor, showed the same {kind} {inv['payee']} to pay"
+    before = [p["payee"] for p in rot.get("payees") or [] if p.get("visit", 0) < rot.get("visit", 0)]
+    text = (f"the same page, opened again as a new visitor, now shows a different name to pay: the money goes to "
+            f"the {kind} {inv['payee']}")
+    if before:
+        text += " instead of " + " or ".join(before) + " as before"
+    if inv.get("amount"):
+        text += f"; it still asks to pay Rs {inv['amount']}"
+    return text + "; so it is not clear which account is the right one"
+
+
 def finding_sentence(inv: dict) -> str:
-    """What Kane saw on a scam page, in plain words, for Meena's next reply."""
+    """What Kane saw on a scam page, in plain words, for Meena's next reply. A fresh-visitor re-check (recheck_of
+    set) says instead whether the payee changed, so her reply can ask which account is right."""
+    if inv.get("recheck_of") is not None and inv.get("payee"):
+        return payee_change_sentence(inv)
     bits = []
     if inv.get("claims_to_be"):
         bits.append(f"the page says it is {inv['claims_to_be']}")
@@ -74,12 +94,26 @@ GENERIC_WORDS = {"bank", "india", "indian", "limited", "services", "service", "p
                  "team", "support", "help", "desk", "centre", "center", "national", "private", "the"}
 
 
+def is_recheck(inv: dict) -> bool:
+    """A fresh-visitor payee re-check (app.investigate): its news is that the page named someone else to pay."""
+    return inv.get("recheck_of") is not None
+
+
+# A reply saying the page now names someone else to pay: "a different name", "another account", "the UPI changed".
+PAYEE_CHANGED = re.compile(
+    r"\b(?:different|another|changed|new|two|other)\b(?:\W+\w+){0,3}?\W+(?:names?|accounts?|upi)\b"
+    r"|\b(?:names?|accounts?|upi)\b(?:\W+\w+){0,3}?\W+(?:changed|changes|changing|different)\b", re.IGNORECASE)
+
+
 def mentions_finding(text: str, inv: dict) -> bool:
     """Did Meena's reply really use what Kane found? It must give the name the page uses and the amount it asks for
-    (whichever of the two Kane found)."""
+    (whichever of the two Kane found). For a fresh-visit re-check it must say the payee changed (PAYEE_CHANGED) or
+    name the page's brand: repeating the amount is not the news there."""
     t = (text or "").lower().replace(",", "")
     amount = str(inv.get("amount") or "").replace(",", "").strip()
     words = [w for w in re.findall(r"[a-z]{4,}", str(inv.get("claims_to_be") or "").lower()) if w not in GENERIC_WORDS]
+    if is_recheck(inv):
+        return PAYEE_CHANGED.search(t) is not None or any(re.search(r"\b" + re.escape(w) + r"\b", t) for w in words)
     if not amount and not words:
         return False
     has_amount = not amount or re.search(r"(?<!\d)" + re.escape(amount) + r"(?!\d)", t) is not None

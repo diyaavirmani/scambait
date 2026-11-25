@@ -4,6 +4,7 @@ import { getJSON, onEvent, useCases } from '../lib/live';
 import type { Investigation } from '../lib/types';
 import { PageHeader, Panel, VerdictBadge } from '../components/Layout';
 import { KaneCard } from '../components/KaneCard';
+import { isRecheck, provesNewPayee } from '../lib/kane';
 
 const Tile = ({ icon: Icon, value, label, tone }: { icon: typeof ShieldAlert; value: number; label: string; tone: string }) => (
   <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-center gap-4">
@@ -21,7 +22,7 @@ export const Overview = ({ openCase }: { openCase: (id: string) => void }) => {
     load();
     return onEvent((ev) => { if (ev.type === 'kane.finished') load(); });
   }, []);
-  const proven = invs.filter((i) => i.verdict === 'payment_request_found');
+  const proven = invs.filter(provesNewPayee);
   const latest = invs.filter((i) => i.status !== 'skipped').slice(0, 3);
   return (
     <div className="space-y-6">
@@ -29,7 +30,7 @@ export const Overview = ({ openCase }: { openCase: (id: string) => void }) => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Tile icon={ShieldAlert} value={cases.filter((c) => c.verdict === 'scam').length} label="Scams caught" tone="bg-red-50 text-red-700" />
         <Tile icon={MessagesSquare} value={cases.reduce((n, c) => n + (c.turns || 0), 0)} label="Scammer messages answered" tone="bg-blue-50 text-blue-700" />
-        <Tile icon={Link2} value={invs.filter((i) => i.status !== 'skipped').length} label="Links opened by Kane" tone="bg-slate-100 text-slate-700" />
+        <Tile icon={Link2} value={invs.filter((i) => i.status !== 'skipped' && !isRecheck(i)).length} label="Links opened by Kane" tone="bg-slate-100 text-slate-700" />
         <Tile icon={BadgeCheck} value={proven.length} label="Payees proven by Kane" tone="bg-green-50 text-green-700" />
       </div>
       <Panel title="Latest Kane proof" right={<span className="text-xs text-slate-500">links scammers sent, opened by Kane CLI</span>}>

@@ -8,6 +8,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Each payee re-check is one more full Kane run on a scam page: it costs credits and can tip off the scammer.
+MAX_ROTATION_CHECKS = 2
+
 
 def _str(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
@@ -69,6 +72,10 @@ class Settings:
     kane_username: str = field(default_factory=lambda: _str("KANE_USERNAME"))
     kane_access_key: str = field(default_factory=lambda: _str("KANE_ACCESS_KEY"))
     live_investigation: bool = field(default_factory=lambda: _flag("LIVE_INVESTIGATION", "0"))
+    # Payee-rotation probe: after Kane proves a payee, open the same link this many more times as a fresh
+    # first-time visitor and compare the payees (0 turns it off; never more than MAX_ROTATION_CHECKS)
+    kane_rotation_checks: int = field(
+        default_factory=lambda: min(_int("KANE_ROTATION_CHECKS", 1), MAX_ROTATION_CHECKS))
 
     def missing(self) -> list[str]:
         """Names of required settings that are empty."""

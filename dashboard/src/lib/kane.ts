@@ -42,6 +42,16 @@ export function statusText(inv: Investigation): string {
   return 'No payment request found';
 }
 
+/** A fresh-visitor re-check of a link whose payee Kane already proved (the payee-rotation probe). */
+export function isRecheck(inv: Investigation): boolean {
+  return inv.recheck_of != null;
+}
+
+/** Counts as its own proven payee: a first run that proved one, or a re-check that showed a new one. */
+export function provesNewPayee(inv: Investigation): boolean {
+  return inv.verdict === 'payment_request_found' && (!isRecheck(inv) || !!inv.rotation?.new_payee);
+}
+
 export function shortUrl(url: string, max = 48): string {
   const u = (url || '').replace(/^https?:\/\//, '');
   return u.length > max ? u.slice(0, max - 3) + '...' : u;

@@ -1,7 +1,9 @@
 """Case API for the dashboard.
 
 GET  /api/cases               newest first, with the scammer message count
-GET  /api/intel               every identifier across cases, newest first, each marked if Kane proved it
+GET  /api/intel               every identifier across cases, newest first, each marked if Kane proved it, plus the
+                              payees Kane proved on a case's scam page that nobody said in its chat (for example a
+                              payee that changed on a fresh-visit re-check); those have a negative id and no message
 GET  /api/cases/{id}          the case, its messages, identifiers (each marked if Kane proved it), events, evidence,
                               Kane investigations, and other cases that share an identifier with it
 """
@@ -63,7 +65,22 @@ async def all_intel(limit: int = 500) -> dict:
         "SELECT i.*, c.scam_type, c.channel FROM intel i JOIN cases c ON c.id = i.case_id ORDER BY i.id DESC LIMIT ?",
         (max(1, min(limit, 2000)),))
     proven = proven_keys(await store.list_investigations(None, limit=1000))
-    return {"intel": [{**r, "proven": (r["kind"], r["norm"]) in proven} for r in rows]}
+    out = [{**r, "proven": (r["kind"], r["norm"]) in proven} for r in rows]
+    said = {(r["case_id"], r["kind"], r["norm"]) for r in await store._all("SELECT case_id, kind, norm FROM intel")}
+    kane = await store._all(
+        "SELECT v.id, v.case_id, v.payee, v.payee_kind, COALESCE(v.finished_at, v.created_at) AS first_seen, "
+        "c.scam_type, c.channel FROM investigations v JOIN cases c ON c.id = v.case_id "
+        "WHERE v.verdict = 'payment_request_found' AND v.payee != '' AND v.payee_kind != '' ORDER BY v.id")
+    for v in kane:
+        key = (v["case_id"], v["payee_kind"], normalise(v["payee_kind"], v["payee"]))
+        if key in said:
+            continue
+        said.add(key)  # once per case, however many runs showed it
+        out.append({"id": -v["id"], "case_id": v["case_id"], "kind": v["payee_kind"], "value": v["payee"],
+                    "norm": key[2], "message_id": None, "first_seen": v["first_seen"], "scam_type": v["scam_type"],
+                    "channel": v["channel"], "proven": True})
+    out.sort(key=lambda r: r["first_seen"] or "", reverse=True)
+    return {"intel": out[:max(1, min(limit, 2000))]}
 
 
 @router.get("/api/cases/{case_id}")

@@ -39,6 +39,23 @@ export interface Msg { id: number; case_id: string; role: 'scammer' | 'persona';
 
 export interface Intel { kind: string; value: string; message_id?: number | null; first_seen?: string; proven?: boolean; }
 
+/** One payee Kane proved on a link, at the visit that first showed it. */
+export interface RotationPayee { payee: string; payee_kind: string; visit: number; investigation_id: number; }
+
+/** The payee-rotation probe on one link (app/investigate/__init__.py, rotation_facts): Kane opened it again as a
+ *  fresh first-time visitor and compared the payees. The same facts are on every run of the link, each with its own
+ *  visit number (1 is the first run) and new_payee (this re-check showed a payee no earlier visit showed). */
+export interface Rotation {
+  first_id: number;
+  rechecks: number[];
+  payees: RotationPayee[];
+  proven_visits: number;
+  rotated: boolean;
+  replayed: boolean;
+  visit: number;
+  new_payee: boolean;
+}
+
 /** One Kane CLI run on a link the scammer sent. */
 export interface Investigation {
   id: number;
@@ -60,6 +77,8 @@ export interface Investigation {
   evidence_sha256: string;
   unsafe_actions?: string[];
   replayed?: boolean;
+  recheck_of?: number | null; // the first run of this link, on a fresh-visitor payee re-check
+  rotation?: Rotation | null; // null until the link has a re-check
   created_at?: string;
   finished_at?: string | null;
 }
@@ -70,7 +89,7 @@ export interface LabSite {
   scam_type: string;
   path: string;
   lure: string;
-  answer: { payee: string; amount: number; claims_to_be: string };
+  answer: { payee: string; amount: number; claims_to_be: string; payees?: string[] };
 }
 
 export interface CaseData {

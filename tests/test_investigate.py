@@ -128,7 +128,8 @@ async def env(tmp_path, monkeypatch):
     monkeypatch.setenv("FAKE_KANE_LOG", str(log))
     store = Store(str(tmp_path / "inv.db"))
     await store.init()
-    settings = Settings(kane_cmd=f"{sys.executable} {FAKE}", kane_workdir=str(tmp_path / "kane"))
+    settings = Settings(kane_cmd=f"{sys.executable} {FAKE}", kane_workdir=str(tmp_path / "kane"),
+                        kane_rotation_checks=0)
     set_runtime(Runtime(settings=settings, store=store, bus=Bus(store)))
     case = await store.new_case("telegram", "tg:7")
     yield store, case["id"], log

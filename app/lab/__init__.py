@@ -9,25 +9,31 @@ form posts are thrown away. The only thing kept is a count of visits per step an
 pay button (field names only, never values), so a test can prove an investigator reached the payment step
 and never paid.
 
+Rotating payee: a site whose answer lists several payees (/lab/loan) gives each fresh visitor the next one. A
+visitor is a browser holding the site's random `lab_visitor` cookie; a browser without it (or with one from before
+a reset) is a new visitor. The activity log records which payee each visitor was shown on the payment step, so a
+probe that opens the link twice can be checked against what the lab really showed.
+
 Routes:
   GET  /lab                     list of sites with their known answers
   GET  /lab/{site}              step 0;  GET /lab/{site}/{n} step n
   POST /lab/{site}/{n}          go to step n + 1 (submitted values are discarded)
   POST /lab/{site}/pay          a payment attempt: recorded, then shown as failed
   GET  /lab/api/sites           sites and answers as JSON
-  GET  /lab/api/activity        visits and payment attempts per site
-  POST /lab/api/reset           clear the activity counters
+  GET  /lab/api/activity        visits and payment attempts per site (and payees shown, on a rotating site)
+  POST /lab/api/reset           clear the activity counters and start every rotation again at its first payee
 """
 from __future__ import annotations
 
 import html
+import secrets
 import threading
 from collections import defaultdict
 from dataclasses import asdict
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from app.lab.sites import SITES, SITES_BY_KEY, Site, Step
 
@@ -36,6 +42,9 @@ router = APIRouter(prefix="/lab")
 _lock = threading.Lock()
 _visits: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
 _attempts: dict[str, list[dict]] = defaultdict(list)
+_visitors: dict[str, dict[str, int]] = defaultdict(dict)   # rotating site -> visitor cookie -> visitor number (0..)
+_shown: dict[str, list[dict]] = defaultdict(list)          # rotating site -> payee each visitor saw on the pay step
+VISITOR_COOKIE = "lab_visitor"
 
 BANNER = ("Practice site for SCAM-BAIT testing. {brand} is fictional and so is everything on this page. "
           "Never enter real details.")
@@ -88,16 +97,28 @@ def _field_html(f) -> str:
             f"<input type='{f.kind}' id='{fid}' name='{f.name}'{ph} autocomplete='off'>")
 
 
-def _step_page(site: Site, n: int) -> HTMLResponse:
+def _step_page(site: Site, n: int, payee: str = "") -> HTMLResponse:
     step: Step = site.steps[n]
     action = f"/lab/{site.key}/pay" if step.pay else f"/lab/{site.key}/{n}"
     fields = "".join(_field_html(f) for f in step.fields)
+    markup = step.html.replace("{payee}", html.escape(payee)) if site.rotates else step.html
     body = (
         f"<div class='card'><div class='steps'>Step {n + 1} of {len(site.steps)}</div>"
-        f"<h1>{step.title}</h1>{step.html}"
+        f"<h1>{step.title}</h1>{markup}"
         f"<form method='post' action='{action}'>{fields}<button type='submit'>{step.button}</button></form></div>"
     )
     return _page(step.title, site.brand, site.color, body)
+
+
+def _visitor(site: Site, request: Request) -> tuple[str, int, bool]:
+    """(cookie, visitor number, new) on a rotating site. Must be called with _lock held."""
+    known = _visitors[site.key]
+    token = request.cookies.get(VISITOR_COOKIE, "")
+    if token in known:
+        return token, known[token], False
+    token = secrets.token_hex(8)
+    known[token] = len(known)
+    return token, known[token], True
 
 
 def _site(key: str) -> Site:
@@ -118,10 +139,14 @@ async def lab_index() -> HTMLResponse:
     for s in SITES:
         a = s.answer
         payee = a.payee + (f" (IFSC {a.extra['ifsc']})" if "ifsc" in a.extra else "")
+        pays = f"<code>{html.escape(payee)}</code>"
+        if s.rotates:
+            pays = ("one of " + ", ".join(f"<code>{html.escape(p)}</code>" for p in a.payees)
+                    + " (the payee changes for each fresh visitor)")
         items.append(
             f"<a href='/lab/{s.key}' style='--c:{s.color}'><b>{html.escape(s.brand)}</b>"
             f" <small>{html.escape(s.scam_type)}</small><br><small>Known answer: pays "
-            f"<code>{html.escape(payee)}</code>, &#8377;{a.amount:,}</small></a>"
+            f"{pays}, &#8377;{a.amount:,}</small></a>"
         )
     body = ("<div class='card'><h1>Practice scam lab</h1><p>Fictional scam sites with known answers, used by the "
             "Kane investigator and its tests. Nothing here is real and nothing typed here is stored.</p>"
@@ -147,6 +172,10 @@ async def lab_activity() -> JSONResponse:
             }
             for s in SITES
         }
+        for s in SITES:
+            if s.rotates:
+                out[s.key]["visitors"] = len(_visitors[s.key])
+                out[s.key]["payees_shown"] = [dict(x) for x in _shown[s.key]]
     return JSONResponse(out)
 
 
@@ -155,22 +184,34 @@ async def lab_reset() -> JSONResponse:
     with _lock:
         _visits.clear()
         _attempts.clear()
+        _visitors.clear()
+        _shown.clear()
     return JSONResponse({"ok": True})
 
 
 @router.get("/{key}", include_in_schema=False)
-async def site_start(key: str) -> HTMLResponse:
-    return await site_step(key, 0)
+async def site_start(key: str, request: Request) -> Response:
+    return await site_step(key, 0, request)
 
 
 @router.get("/{key}/{n:int}", include_in_schema=False)
-async def site_step(key: str, n: int) -> HTMLResponse:
+async def site_step(key: str, n: int, request: Request) -> Response:
     site = _site(key)
     if not 0 <= n < len(site.steps):
         raise HTTPException(status_code=404, detail="No such step.")
+    token, new = "", False
+    payee = ""
     with _lock:
         _visits[site.key][n] += 1
-    return _step_page(site, n)
+        if site.rotates:
+            token, number, new = _visitor(site, request)
+            payee = site.answer.payees[number % len(site.answer.payees)]
+            if site.steps[n].pay and not any(x["visitor"] == number + 1 for x in _shown[site.key]):
+                _shown[site.key].append({"visitor": number + 1, "payee": payee, "ts": _now()})
+    page = _step_page(site, n, payee)
+    if new:
+        page.set_cookie(VISITOR_COOKIE, token, path=f"/lab/{site.key}", httponly=True, samesite="lax")
+    return page
 
 
 @router.post("/{key}/pay", include_in_schema=False)
