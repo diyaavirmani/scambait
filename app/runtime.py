@@ -13,6 +13,7 @@ class Runtime:
     store: Any          # app.store.Store
     bus: Any            # app.bus.Bus
     brain: Any = None   # app.brain.CerebrasBrain or app.brain.ScriptedBrain
+    health: Optional[dict] = None   # the brain self-test result, shown on /health
 
 
 _runtime: Optional[Runtime] = None
